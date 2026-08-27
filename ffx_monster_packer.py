@@ -61,7 +61,7 @@ def repack_chunks(chunks: list) -> bytes:
     return bytes(out)
 
 def safe_atomic_write(filepath: str, data: bytes):
-    dir_name = os.path.dirname(filepath)
+    dir_name = os.path.dirname(os.path.abspath(filepath))
     fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as tmp_file:

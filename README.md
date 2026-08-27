@@ -20,10 +20,13 @@ FFX monster files are organized into a multi-chunk structure header, usually con
 
 | Chunk | Description |
 |---|---|
-| **Chunk 0** | Monster Core Stats (HP, MP, attributes, resistances, item rewards) |
-| **Chunk 1** | Battle AI Script bytecode (Atel Engine) |
-| **Chunk 2** | Localized text/strings (custom encoding) |
-| **Chunks 3-6**| Animation, visual layout, and extra game assets |
+| **Chunk 0** | Battle AI Script bytecode (Atel Engine) |
+| **Chunk 1** | Animation / visual layout model data |
+| **Chunk 2** | Japanese Monster Core Stats & localized strings |
+| **Chunk 3** | Animation / visual layout model data |
+| **Chunk 4** | Monster Loot, AP, Gil, and item rewards table |
+| **Chunk 5** | Animation / visual layout model data |
+| **Chunk 6** | English (US) Monster Core Stats & localized strings |
 
 The packer utility parses this file layout, manages section offsets, handles padding requirements, and compiles files seamlessly.
 

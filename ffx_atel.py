@@ -843,6 +843,53 @@ class AtelDecompiler:
         return "\n".join(output)
 
 
+def encode_rule_condition(cond_type: str, jump_target_idx: int) -> bytes:
+    b = bytearray()
+    if cond_type == "HP < 50%":
+        b.extend(b"\xAE\xF2\xFF\xAE\x15\x00\xB5\x0F\x70\xAE\x32\x00\x0B\x2A")
+    elif cond_type == "HP < 25%":
+        b.extend(b"\xAE\xF2\xFF\xAE\x15\x00\xB5\x0F\x70\xAE\x19\x00\x0B\x2A")
+    elif cond_type == "MP < 50%":
+        b.extend(b"\xAE\xF2\xFF\xAE\x16\x00\xB5\x0F\x70\xAE\x32\x00\x0B\x2A")
+    elif cond_type == "MP < 25%":
+        b.extend(b"\xAE\xF2\xFF\xAE\x16\x00\xB5\x0F\x70\xAE\x19\x00\x0B\x2A")
+    elif cond_type == "Turn 1":
+        b.extend(b"\xAE\xF2\xFF\xAE\x11\x00\xB5\x0F\x70\xAE\x01\x00\x06\x2A")
+    elif cond_type == "Turn 2":
+        b.extend(b"\xAE\xF2\xFF\xAE\x11\x00\xB5\x0F\x70\xAE\x02\x00\x06\x2A")
+    elif cond_type == "Turn 3":
+        b.extend(b"\xAE\xF2\xFF\xAE\x11\x00\xB5\x0F\x70\xAE\x03\x00\x06\x2A")
+    elif cond_type == "Every 2 Turns":
+        b.extend(b"\xAE\xF2\xFF\xAE\x11\x00\xB5\x0F\x70\xAE\x02\x00\x18\xAE\x00\x00\x06\x2A")
+    elif cond_type == "Every 3 Turns":
+        b.extend(b"\xAE\xF2\xFF\xAE\x11\x00\xB5\x0F\x70\xAE\x03\x00\x18\xAE\x00\x00\x06\x2A")
+    elif cond_type == "Target: Has Reflect":
+        b.extend(b"\xAE\xF0\xFF\xAE\x21\x00\xB5\x01\x70\xAE\x01\x00\x06\x2A")
+    elif cond_type == "Target: Has Protect":
+        b.extend(b"\xAE\xF0\xFF\xAE\x1F\x00\xB5\x01\x70\xAE\x01\x00\x06\x2A")
+    elif cond_type == "Target: Has Shell":
+        b.extend(b"\xAE\xF0\xFF\xAE\x20\x00\xB5\x01\x70\xAE\x01\x00\x06\x2A")
+    elif cond_type == "Target: Has Haste":
+        b.extend(b"\xAE\xF0\xFF\xAE\x23\x00\xB5\x01\x70\xAE\x01\x00\x06\x2A")
+    elif cond_type == "Target: Not Poisoned":
+        b.extend(b"\xAE\xF0\xFF\xAE\x03\x00\xB5\x01\x70\xAE\x00\x00\x06\x2A")
+    elif cond_type == "Target: Not Silenced":
+        b.extend(b"\xAE\xF0\xFF\xAE\x04\x00\xB5\x01\x70\xAE\x00\x00\x06\x2A")
+    elif cond_type == "Target: Not Blind":
+        b.extend(b"\xAE\xF0\xFF\xAE\x05\x00\xB5\x01\x70\xAE\x00\x00\x06\x2A")
+    elif cond_type == "Solo Fiend (Last Standing)":
+        b.extend(b"\xAE\xF2\xFF\xAE\x28\x00\xB5\x0F\x70\xAE\x01\x00\x0F\x2A")
+    elif cond_type == "Party Alive <= 1":
+        b.extend(b"\xAE\xF2\xFF\xAE\x29\x00\xB5\x0F\x70\xAE\x01\x00\x0F\x2A")
+    elif cond_type == "Party Alive <= 2":
+        b.extend(b"\xAE\xF2\xFF\xAE\x29\x00\xB5\x0F\x70\xAE\x02\x00\x0F\x2A")
+    else:
+        return b""
+    
+    b.extend(struct.pack("<B H", 0xD7, jump_target_idx))
+    return bytes(b)
+
+
 def compile_rules_to_atel(rules, script_id="001"):
     import struct
     # 1. Compile bytecode
@@ -871,29 +918,11 @@ def compile_rules_to_atel(rules, script_id="001"):
             bytecode2.extend(struct.pack("<B H", 0xD7, chance_failed_jump_idx))
             
         cond_failed_jump_idx = None
-        if cond_type == "HP < 50%":
-            bytecode2.extend(b"\xAE\xF2\xFF")  # PUSHII -14 (Self)
-            bytecode2.extend(b"\xAE\x15\x00")  # PUSHII 21 (HP%)
-            bytecode2.extend(b"\xB5\x0F\x70")  # CALL call_700F
-            bytecode2.extend(b"\xAE\x32\x00")  # PUSHII 50
-            bytecode2.extend(b"\x0B")          # OPLS
-            bytecode2.extend(b"\x2A")          # POPX
-            
+        cond_bytes = encode_rule_condition(cond_type, len(jumps))
+        if cond_bytes:
             cond_failed_jump_idx = len(jumps)
             jumps.append(0)
-            bytecode2.extend(struct.pack("<B H", 0xD7, cond_failed_jump_idx))
-            
-        elif cond_type == "MP < 50%":
-            bytecode2.extend(b"\xAE\xF2\xFF")  # PUSHII -14 (Self)
-            bytecode2.extend(b"\xAE\x16\x00")  # PUSHII 22 (MP%)
-            bytecode2.extend(b"\xB5\x0F\x70")  # CALL call_700F
-            bytecode2.extend(b"\xAE\x32\x00")  # PUSHII 50
-            bytecode2.extend(b"\x0B")          # OPLS
-            bytecode2.extend(b"\x2A")          # POPX
-            
-            cond_failed_jump_idx = len(jumps)
-            jumps.append(0)
-            bytecode2.extend(struct.pack("<B H", 0xD7, cond_failed_jump_idx))
+            bytecode2.extend(cond_bytes)
             
         # Execute Action
         action_id = int(rule.get("action_id", 4))
@@ -1013,29 +1042,11 @@ def compile_rules_to_bytecode(rules, jump_index_offset=0, function_start_offset=
             bytecode.extend(struct.pack("<B H", 0xD7, jump_index_offset + chance_failed_jump_idx))
             
         cond_failed_jump_idx = None
-        if cond_type == "HP < 50%":
-            bytecode.extend(b"\xAE\xF2\xFF")  # PUSHII -14 (Self)
-            bytecode.extend(b"\xAE\x15\x00")  # PUSHII 21 (HP%)
-            bytecode.extend(b"\xB5\x0F\x70")  # CALL call_700F
-            bytecode.extend(b"\xAE\x32\x00")  # PUSHII 50
-            bytecode.extend(b"\x0B")          # OPLS
-            bytecode.extend(b"\x2A")          # POPX
-            
+        cond_bytes = encode_rule_condition(cond_type, jump_index_offset + len(jumps))
+        if cond_bytes:
             cond_failed_jump_idx = len(jumps)
             jumps.append(0)
-            bytecode.extend(struct.pack("<B H", 0xD7, jump_index_offset + cond_failed_jump_idx))
-            
-        elif cond_type == "MP < 50%":
-            bytecode.extend(b"\xAE\xF2\xFF")  # PUSHII -14 (Self)
-            bytecode.extend(b"\xAE\x16\x00")  # PUSHII 22 (MP%)
-            bytecode.extend(b"\xB5\x0F\x70")  # CALL call_700F
-            bytecode.extend(b"\xAE\x32\x00")  # PUSHII 50
-            bytecode.extend(b"\x0B")          # OPLS
-            bytecode.extend(b"\x2A")          # POPX
-            
-            cond_failed_jump_idx = len(jumps)
-            jumps.append(0)
-            bytecode.extend(struct.pack("<B H", 0xD7, jump_index_offset + cond_failed_jump_idx))
+            bytecode.extend(cond_bytes)
             
         # Execute Action
         action_id = int(rule.get("action_id", 4))
@@ -1173,11 +1184,15 @@ def inject_rules(original_bytes, rules, worker_idx=1, func_idx=2):
 
 def decompile_atel_to_rules(chunk0_bytes, worker_idx=1, func_idx=2):
     disasm = AtelDisassembler(chunk0_bytes)
-    if worker_idx >= len(disasm.workers):
+    if not disasm.workers:
         return None
+    if worker_idx >= len(disasm.workers):
+        worker_idx = 0
     worker = disasm.workers[worker_idx]
     if func_idx >= len(worker["funcs"]):
-        return None
+        func_idx = len(worker["funcs"]) - 1
+        if func_idx < 0:
+            return None
     S = worker["funcs"][func_idx]
     
     entry_points = sorted(list(set(addr for w in disasm.workers for addr in w["funcs"])))
@@ -1233,23 +1248,72 @@ def decompile_atel_to_rules(chunk0_bytes, worker_idx=1, func_idx=2):
             chance = instructions[i+3][1]
             i += 7
             
-        # 2. Condition check pattern (7 instructions)
-        if (i + 6 < n and
+        # 2. Condition check patterns
+        # 2a. Modulo turn condition (9 instructions)
+        if (i + 8 < n and
             instructions[i][0] == 0xAE and instructions[i][1] == -14 and
-            instructions[i+1][0] == 0xAE and
+            instructions[i+1][0] == 0xAE and instructions[i+1][1] == 17 and
             instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x700F and
-            instructions[i+3][0] == 0xAE and instructions[i+3][1] == 50 and
-            instructions[i+4][0] == 0x0B and
-            instructions[i+5][0] == 0x2A and
-            instructions[i+6][0] == 0xD7):
+            instructions[i+3][0] == 0xAE and
+            instructions[i+4][0] == 0x18 and
+            instructions[i+5][0] == 0xAE and instructions[i+5][1] == 0 and
+            instructions[i+6][0] == 0x06 and
+            instructions[i+7][0] == 0x2A and
+            instructions[i+8][0] == 0xD7):
+            
+            mod_val = instructions[i+3][1]
+            condition = f"Every {mod_val} Turns"
+            i += 9
+
+        # 2b. Target status condition (7 instructions)
+        elif (i + 6 < n and
+              instructions[i][0] == 0xAE and instructions[i][1] == -16 and
+              instructions[i+1][0] == 0xAE and
+              instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x7001 and
+              instructions[i+3][0] == 0xAE and
+              instructions[i+4][0] == 0x06 and
+              instructions[i+5][0] == 0x2A and
+              instructions[i+6][0] == 0xD7):
+              
+            status_id = instructions[i+1][1]
+            val = instructions[i+3][1]
+            if status_id == 33 and val == 1: condition = "Target: Has Reflect"
+            elif status_id == 31 and val == 1: condition = "Target: Has Protect"
+            elif status_id == 32 and val == 1: condition = "Target: Has Shell"
+            elif status_id == 35 and val == 1: condition = "Target: Has Haste"
+            elif status_id == 3 and val == 0: condition = "Target: Not Poisoned"
+            elif status_id == 4 and val == 0: condition = "Target: Not Silenced"
+            elif status_id == 5 and val == 0: condition = "Target: Not Blind"
+            else:
+                condition = f"Target Status_{status_id} == {val}"
+            i += 7
+
+        # 2c. General Property condition (7 instructions)
+        elif (i + 6 < n and
+              instructions[i][0] == 0xAE and instructions[i][1] == -14 and
+              instructions[i+1][0] == 0xAE and
+              instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x700F and
+              instructions[i+3][0] == 0xAE and
+              instructions[i+4][0] in [0x0B, 0x06, 0x0F] and
+              instructions[i+5][0] == 0x2A and
+              instructions[i+6][0] == 0xD7):
             
             param = instructions[i+1][1]
-            if param == 21:
-                condition = "HP < 50%"
-            elif param == 22:
-                condition = "MP < 50%"
+            val = instructions[i+3][1]
+            op = instructions[i+4][0]
+            
+            if param == 21 and op == 0x0B:
+                condition = f"HP < {val}%"
+            elif param == 22 and op == 0x0B:
+                condition = f"MP < {val}%"
+            elif param == 17 and op == 0x06:
+                condition = f"Turn {val}"
+            elif param == 40 and op == 0x0F and val == 1:
+                condition = "Solo Fiend (Last Standing)"
+            elif param == 41 and op == 0x0F:
+                condition = f"Party Alive <= {val}"
             else:
-                condition = f"Param_{param} < 50%"
+                condition = f"Param_{param} < {val}"
             i += 7
             
         # 3. Action execution pattern (10 instructions)

@@ -15,6 +15,89 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(script_dir, "ffx_ai_tool_recent_files.json")
 ELEMENT_STATES = ["Normal", "Weak", "Resist", "Immune", "Absorb"]
 
+ZONE_CATEGORIES = [
+    "All Zones",
+    "Besaid Island",
+    "Kilika Woods & Temple",
+    "Luca & Mi'ihen Highroad",
+    "Mushroom Rock & Djose",
+    "Moonflow & Guadosalam",
+    "Thunder Plains",
+    "Macalania Woods & Lake",
+    "Sanubia Desert (Bikanel)",
+    "Bevelle & Via Purifico",
+    "Calm Lands & Sunken Cave",
+    "Mt. Gagazet & Zanarkand",
+    "Inside Sin & Omega Ruins",
+    "Monster Arena",
+    "Story Bosses",
+    "Dark Aeons & Superbosses",
+]
+
+MONSTER_ZONE_MAP = {
+    # Besaid
+    "m001": "Besaid Island", "m002": "Besaid Island", "m003": "Besaid Island", "m004": "Besaid Island",
+    "m005": "Besaid Island", "m006": "Besaid Island",
+    # Kilika
+    "m007": "Kilika Woods & Temple", "m008": "Kilika Woods & Temple", "m009": "Kilika Woods & Temple",
+    "m010": "Kilika Woods & Temple", "m011": "Kilika Woods & Temple",
+    # Mi'ihen & Luca
+    "m012": "Luca & Mi'ihen Highroad", "m013": "Luca & Mi'ihen Highroad", "m014": "Luca & Mi'ihen Highroad",
+    "m015": "Luca & Mi'ihen Highroad", "m016": "Luca & Mi'ihen Highroad", "m017": "Luca & Mi'ihen Highroad",
+    "m018": "Luca & Mi'ihen Highroad", "m019": "Luca & Mi'ihen Highroad",
+    # Mushroom Rock & Djose
+    "m020": "Mushroom Rock & Djose", "m021": "Mushroom Rock & Djose", "m022": "Mushroom Rock & Djose",
+    "m023": "Mushroom Rock & Djose", "m024": "Mushroom Rock & Djose", "m025": "Mushroom Rock & Djose",
+    "m026": "Mushroom Rock & Djose", "m027": "Mushroom Rock & Djose",
+    # Moonflow & Guadosalam
+    "m028": "Moonflow & Guadosalam", "m029": "Moonflow & Guadosalam", "m030": "Moonflow & Guadosalam",
+    "m031": "Moonflow & Guadosalam", "m032": "Moonflow & Guadosalam",
+    # Thunder Plains
+    "m033": "Thunder Plains", "m034": "Thunder Plains", "m035": "Thunder Plains", "m036": "Thunder Plains",
+    "m037": "Thunder Plains", "m038": "Thunder Plains", "m039": "Thunder Plains",
+    # Macalania
+    "m040": "Macalania Woods & Lake", "m041": "Macalania Woods & Lake", "m042": "Macalania Woods & Lake",
+    "m043": "Macalania Woods & Lake", "m044": "Macalania Woods & Lake", "m045": "Macalania Woods & Lake",
+    "m046": "Macalania Woods & Lake", "m047": "Macalania Woods & Lake", "m048": "Macalania Woods & Lake",
+    # Bikanel
+    "m049": "Sanubia Desert (Bikanel)", "m050": "Sanubia Desert (Bikanel)", "m051": "Sanubia Desert (Bikanel)",
+    "m052": "Sanubia Desert (Bikanel)", "m053": "Sanubia Desert (Bikanel)", "m054": "Sanubia Desert (Bikanel)",
+    # Bevelle / Via Purifico
+    "m055": "Bevelle & Via Purifico", "m056": "Bevelle & Via Purifico", "m057": "Bevelle & Via Purifico",
+    "m058": "Bevelle & Via Purifico", "m059": "Bevelle & Via Purifico", "m060": "Bevelle & Via Purifico",
+    # Calm Lands & Sunken Cave
+    "m061": "Calm Lands & Sunken Cave", "m062": "Calm Lands & Sunken Cave", "m063": "Calm Lands & Sunken Cave",
+    "m064": "Calm Lands & Sunken Cave", "m065": "Calm Lands & Sunken Cave", "m066": "Calm Lands & Sunken Cave",
+    "m067": "Calm Lands & Sunken Cave", "m068": "Calm Lands & Sunken Cave", "m069": "Calm Lands & Sunken Cave",
+    # Gagazet & Zanarkand
+    "m070": "Mt. Gagazet & Zanarkand", "m071": "Mt. Gagazet & Zanarkand", "m072": "Mt. Gagazet & Zanarkand",
+    "m073": "Mt. Gagazet & Zanarkand", "m074": "Mt. Gagazet & Zanarkand", "m075": "Mt. Gagazet & Zanarkand",
+    "m076": "Mt. Gagazet & Zanarkand", "m077": "Mt. Gagazet & Zanarkand", "m078": "Mt. Gagazet & Zanarkand",
+    # Sin & Omega
+    "m079": "Inside Sin & Omega Ruins", "m080": "Inside Sin & Omega Ruins", "m081": "Inside Sin & Omega Ruins",
+    "m082": "Inside Sin & Omega Ruins", "m083": "Inside Sin & Omega Ruins", "m084": "Inside Sin & Omega Ruins",
+    "m085": "Inside Sin & Omega Ruins", "m086": "Inside Sin & Omega Ruins", "m087": "Inside Sin & Omega Ruins",
+    # Arena Creations
+    "m334": "Monster Arena", "m335": "Monster Arena", "m336": "Monster Arena", "m337": "Monster Arena",
+    "m338": "Monster Arena", "m339": "Monster Arena", "m340": "Monster Arena", "m341": "Monster Arena",
+    "m342": "Monster Arena", "m343": "Monster Arena", "m344": "Monster Arena", "m345": "Monster Arena",
+    "m346": "Monster Arena", "m276": "Monster Arena",
+    # Dark Aeons & Superbosses
+    "m109": "Dark Aeons & Superbosses", "m099": "Dark Aeons & Superbosses", "m100": "Dark Aeons & Superbosses",
+    # Story Bosses
+    "m153": "Story Bosses", "m102": "Story Bosses", "m103": "Story Bosses", "m110": "Story Bosses",
+    "m156": "Story Bosses", "m104": "Story Bosses", "m117": "Story Bosses", "m160": "Story Bosses",
+    "m161": "Story Bosses", "m111": "Story Bosses", "m121": "Story Bosses", "m122": "Story Bosses",
+    "m123": "Story Bosses", "m124": "Story Bosses", "m125": "Story Bosses", "m141": "Story Bosses",
+    "m222": "Story Bosses", "m212": "Story Bosses", "m119": "Story Bosses", "m120": "Story Bosses",
+    "m126": "Story Bosses", "m127": "Story Bosses", "m229": "Story Bosses", "m134": "Story Bosses",
+    "m135": "Story Bosses", "m142": "Story Bosses", "m143": "Story Bosses", "m128": "Story Bosses",
+    "m129": "Story Bosses", "m130": "Story Bosses", "m136": "Story Bosses", "m137": "Story Bosses",
+    "m139": "Story Bosses", "m138": "Story Bosses", "m140": "Story Bosses", "m113": "Story Bosses",
+    "m131": "Story Bosses", "m132": "Story Bosses", "m173": "Story Bosses", "m174": "Story Bosses",
+    "m176": "Story Bosses"
+}
+
 class FFXAIToolGUI:
     def __init__(self, parent, is_embedded=False):
         self.parent = parent
@@ -155,11 +238,13 @@ class FFXAIToolGUI:
         self._handling_select = False
         
         self.create_widgets()
+        self.setup_syntax_highlighting()
+        self.setup_shortcuts()
         
         self.auto_detect_directory()
         
     def load_config(self):
-        config = {"ffxii_convert_path": ""}
+        config = {"master_path": ""}
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, "r") as f:
@@ -389,7 +474,8 @@ class FFXAIToolGUI:
             "var_qty_drop_n_p_c", "var_qty_drop_n_p_r", "var_qty_drop_n_s_c", "var_qty_drop_n_s_r",
             "var_qty_drop_o_p_c", "var_qty_drop_o_p_r", "var_qty_drop_o_s_c", "var_qty_drop_o_s_r",
             "var_qty_steal_c", "var_qty_steal_r", "var_qty_bribe", "var_zanmato",
-            "var_gil_steal", "var_arena_price"
+            "var_gil_steal", "var_arena_price",
+            "var_weapon_bias", "var_max_slots", "var_slot_variance", "var_ability_weight"
         ]
         for v in vars_to_track:
             if hasattr(self, v):
@@ -592,10 +678,10 @@ class FFXAIToolGUI:
         # Helper to add entry row
         def add_row(parent, row, label_text, default_val):
             lbl = tk.Label(parent, text=label_text, bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10))
-            lbl.grid(row=row, column=0, sticky="w", pady=6)
+            lbl.grid(row=row, column=0, sticky="w", pady=5)
             var = tk.StringVar(value=default_val)
             ent = ttk.Entry(parent, textvariable=var, width=12)
-            ent.grid(row=row, column=1, sticky="e", pady=6)
+            ent.grid(row=row, column=1, sticky="e", pady=5)
             return var
             
         var_hp = add_row(form_frame, 0, "HP / Overkill Multiplier:", "1.0")
@@ -613,9 +699,89 @@ class FFXAIToolGUI:
         
         form_frame.columnconfigure(0, weight=1)
         
+        # Presets Bar
+        preset_frame = tk.Frame(dialog, bg=self.bg_color)
+        preset_frame.pack(fill="x", padx=40, pady=(10, 0))
+        tk.Label(preset_frame, text="Preset:", bg=self.bg_color, fg=self.text_dim, font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 5))
+        
+        cmb_preset = ttk.Combobox(preset_frame, values=[
+            "Custom",
+            "Standard Hard Mode (1.5x)",
+            "Nightmare Mode (2.5x)",
+            "Casual Speedrun (0.6x)",
+            "Boss Rush Challenge (2.0x)",
+            "Gold & AP Farm (3.0x)"
+        ], state="readonly", width=20)
+        cmb_preset.set("Custom")
+        cmb_preset.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        def on_preset_selected(e=None):
+            p = cmb_preset.get()
+            if p == "Standard Hard Mode (1.5x)":
+                var_hp.set("1.5"); var_mp.set("1.2"); var_str_mag.set("1.25"); var_def_mdf.set("1.2")
+                var_agi.set("1.15"); var_res.set("1.25"); var_res_floor.set("20"); var_misc.set("1.1")
+                var_gil.set("1.2"); var_ap.set("1.2"); var_items.set("1.0")
+            elif p == "Nightmare Mode (2.5x)":
+                var_hp.set("2.5"); var_mp.set("2.0"); var_str_mag.set("1.5"); var_def_mdf.set("1.4")
+                var_agi.set("1.3"); var_res.set("1.5"); var_res_floor.set("40"); var_misc.set("1.2")
+                var_gil.set("1.5"); var_ap.set("1.5"); var_items.set("1.0")
+            elif p == "Casual Speedrun (0.6x)":
+                var_hp.set("0.6"); var_mp.set("0.8"); var_str_mag.set("0.75"); var_def_mdf.set("0.7")
+                var_agi.set("0.9"); var_res.set("0.8"); var_res_floor.set("0"); var_misc.set("1.0")
+                var_gil.set("2.0"); var_ap.set("2.0"); var_items.set("2.0")
+            elif p == "Boss Rush Challenge (2.0x)":
+                var_hp.set("2.0"); var_mp.set("1.5"); var_str_mag.set("1.4"); var_def_mdf.set("1.3")
+                var_agi.set("1.25"); var_res.set("1.3"); var_res_floor.set("30"); var_misc.set("1.15")
+                var_gil.set("2.0"); var_ap.set("2.0"); var_items.set("1.0")
+            elif p == "Gold & AP Farm (3.0x)":
+                var_hp.set("1.0"); var_mp.set("1.0"); var_str_mag.set("1.0"); var_def_mdf.set("1.0")
+                var_agi.set("1.0"); var_res.set("1.0"); var_res_floor.set("0"); var_misc.set("1.0")
+                var_gil.set("3.0"); var_ap.set("3.0"); var_items.set("2.0")
+                
+        cmb_preset.bind("<<ComboboxSelected>>", on_preset_selected)
+        
+        def save_preset_json():
+            f = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")], title="Save Scaling Preset")
+            if f:
+                data = {
+                    "hp": var_hp.get(), "mp": var_mp.get(), "str_mag": var_str_mag.get(), "def_mdf": var_def_mdf.get(),
+                    "agi": var_agi.get(), "res": var_res.get(), "res_floor": var_res_floor.get(), "misc": var_misc.get(),
+                    "gil": var_gil.get(), "ap": var_ap.get(), "items": var_items.get()
+                }
+                with open(f, "w") as fp:
+                    json.dump(data, fp, indent=2)
+                messagebox.showinfo("Saved", "Scaling preset saved successfully!")
+                
+        def load_preset_json():
+            f = filedialog.askopenfilename(filetypes=[("JSON Files", "*.json")], title="Load Scaling Preset")
+            if f and os.path.exists(f):
+                try:
+                    with open(f, "r") as fp:
+                        data = json.load(fp)
+                    if "hp" in data: var_hp.set(data["hp"])
+                    if "mp" in data: var_mp.set(data["mp"])
+                    if "str_mag" in data: var_str_mag.set(data["str_mag"])
+                    if "def_mdf" in data: var_def_mdf.set(data["def_mdf"])
+                    if "agi" in data: var_agi.set(data["agi"])
+                    if "res" in data: var_res.set(data["res"])
+                    if "res_floor" in data: var_res_floor.set(data["res_floor"])
+                    if "misc" in data: var_misc.set(data["misc"])
+                    if "gil" in data: var_gil.set(data["gil"])
+                    if "ap" in data: var_ap.set(data["ap"])
+                    if "items" in data: var_items.set(data["items"])
+                    cmb_preset.set("Custom")
+                    messagebox.showinfo("Loaded", "Scaling preset loaded successfully!")
+                except Exception as ex:
+                    messagebox.showerror("Error", f"Failed to load preset:\n{ex}")
+                    
+        btn_save_p = tk.Button(preset_frame, text="💾", command=save_preset_json, bg=self.card_color, fg=self.text_color, relief="flat", padx=5)
+        btn_save_p.pack(side="left", padx=2)
+        btn_load_p = tk.Button(preset_frame, text="📂", command=load_preset_json, bg=self.card_color, fg=self.text_color, relief="flat", padx=5)
+        btn_load_p.pack(side="left", padx=2)
+        
         # Button container
         btn_frame = tk.Frame(dialog, bg=self.bg_color)
-        btn_frame.pack(fill="x", padx=40, pady=(25, 0))
+        btn_frame.pack(fill="x", padx=40, pady=(20, 0))
         
         btn_scale = tk.Button(btn_frame, text="⚡ Apply Multipliers", 
                               command=lambda: self.run_batch_scale(var_hp, var_mp, var_str_mag, var_def_mdf, var_agi, var_res, var_res_floor, var_misc, var_gil, var_ap, var_items, dialog),
@@ -787,9 +953,9 @@ class FFXAIToolGUI:
                     old_ap_n = struct.unpack("<H", loot_bytes[0x02:0x04])[0]
                     old_ap_o = struct.unpack("<H", loot_bytes[0x04:0x06])[0]
                     
-                    new_gil = min(999999, int(old_gil * gil_m))
-                    new_ap_n = min(99999, int(old_ap_n * ap_m))
-                    new_ap_o = min(99999, int(old_ap_o * ap_m))
+                    new_gil = min(65535, max(0, int(old_gil * gil_m)))
+                    new_ap_n = min(65535, max(0, int(old_ap_n * ap_m)))
+                    new_ap_o = min(65535, max(0, int(old_ap_o * ap_m)))
                     
                     struct.pack_into("<H", loot_bytes, 0x00, new_gil)
                     struct.pack_into("<H", loot_bytes, 0x02, new_ap_n)
@@ -1288,6 +1454,7 @@ class FFXAIToolGUI:
                 
             self.txt_atel.delete("1.0", tk.END)
             self.txt_atel.insert(tk.END, text)
+            self.apply_atel_syntax_highlighting()
             
             # Populate constants tree
             self.populate_constants_tree()
@@ -1459,7 +1626,24 @@ class FFXAIToolGUI:
         self.cmb_rule_cond = ttk.Combobox(right_frame, values=[
             "Always",
             "HP < 50%",
-            "MP < 50%"
+            "HP < 25%",
+            "MP < 50%",
+            "MP < 25%",
+            "Turn 1",
+            "Turn 2",
+            "Turn 3",
+            "Every 2 Turns",
+            "Every 3 Turns",
+            "Target: Has Reflect",
+            "Target: Has Protect",
+            "Target: Has Shell",
+            "Target: Has Haste",
+            "Target: Not Poisoned",
+            "Target: Not Silenced",
+            "Target: Not Blind",
+            "Solo Fiend (Last Standing)",
+            "Party Alive <= 1",
+            "Party Alive <= 2"
         ], state="readonly", width=25)
         self.cmb_rule_cond.set("Always")
         self.cmb_rule_cond.grid(row=0, column=1, sticky="ew", pady=5, padx=5)
@@ -1622,10 +1806,20 @@ class FFXAIToolGUI:
             cond, act_name, target, chance_str = values
             
             action_id = 4
-            for cmd_id, name in self.commands_list:
-                if name == act_name or act_name.startswith(name):
-                    action_id = cmd_id
-                    break
+            # First attempt: parse hex inside parentheses, e.g. "Attack (0x0)" or "Action 16 (0x10)"
+            start_hex = act_name.rfind("(0x")
+            if start_hex != -1:
+                end_hex = act_name.find(")", start_hex)
+                if end_hex != -1:
+                    try:
+                        action_id = int(act_name[start_hex+3:end_hex], 16)
+                    except ValueError:
+                        action_id = 4
+            else:
+                for cmd_id, name in self.commands_list:
+                    if name == act_name or act_name.startswith(name):
+                        action_id = cmd_id
+                        break
                     
             chance = 100
             try:
@@ -1654,7 +1848,7 @@ class FFXAIToolGUI:
                 try:
                     with open(bak_path, "rb") as f:
                         bak_data = f.read()
-                    bak_chunks = self.unpack_chunks(bak_data)
+                    bak_chunks = packer.unpack_chunks(bak_data)
                     clean_chunk0 = bak_chunks[0]
                 except Exception as e:
                     self.log(f"Failed to read backup chunk 0: {e}", "warning")
@@ -1839,6 +2033,13 @@ class FFXAIToolGUI:
         self.var_zanmato.set(b[0x112] + 1)
         self.var_gil_steal.set(b[0x113])
         self.var_arena_price.set(struct.unpack("<I", b[0x114:0x118])[0])
+        
+        # Equipment Properties
+        if len(b) > 0x30:
+            self.var_weapon_bias.set(b[0x2D] if len(b) > 0x2D else 128)
+            self.var_max_slots.set(b[0x2E] if len(b) > 0x2E else 4)
+            self.var_slot_variance.set(b[0x2F] if len(b) > 0x2F else 0)
+            self.var_ability_weight.set(b[0x30] if len(b) > 0x30 else 0)
 
     def set_combo_to_id(self, combo, target_id):
         if target_id == 0:
@@ -2042,6 +2243,13 @@ class FFXAIToolGUI:
         struct.pack_into("<H", block, 0x2A, self.get_id_from_combo(self.cmb_bribe_item))
         block[0x2C] = int(self.var_qty_bribe.get())
         
+        # Equipment Properties
+        if len(block) > 0x30:
+            block[0x2D] = min(255, max(0, int(self.var_weapon_bias.get())))
+            block[0x2E] = min(4, max(1, int(self.var_max_slots.get())))
+            block[0x2F] = min(4, max(0, int(self.var_slot_variance.get())))
+            block[0x30] = min(255, max(0, int(self.var_ability_weight.get())))
+        
         block[0x112] = max(1, min(100, int(self.var_zanmato.get()))) - 1
         block[0x113] = int(self.var_gil_steal.get())
         struct.pack_into("<I", block, 0x114, int(self.var_arena_price.get()))
@@ -2050,13 +2258,25 @@ class FFXAIToolGUI:
 
     def filter_monsters(self, event=None):
         q = self.ent_search_mon.get().strip().lower()
+        selected_zone = "All Zones"
+        if hasattr(self, "cmb_zone_filter"):
+            selected_zone = self.cmb_zone_filter.get()
+            
         self.tree_monsters.delete(*self.tree_monsters.get_children())
         for m in self.monsters_list:
-            if not q or q in m["id"] or q in m["name"].lower():
+            m_id = m["id"]
+            m_zone = MONSTER_ZONE_MAP.get(m_id, "Other / Field")
+            
+            # Check zone match
+            if selected_zone != "All Zones" and m_zone != selected_zone:
+                continue
+                
+            # Check query match
+            if not q or q in m_id or q in m["name"].lower() or q in m_zone.lower():
                 disp_name = m["name"]
-                if m["id"] in self.monster_cache and self.monster_cache[m["id"]].get("is_dirty"):
+                if m_id in self.monster_cache and self.monster_cache[m_id].get("is_dirty"):
                     disp_name = f"* {disp_name}"
-                self.tree_monsters.insert("", tk.END, iid=m["id"], values=(m["id"], disp_name))
+                self.tree_monsters.insert("", tk.END, iid=m_id, values=(m_id, disp_name))
 
     def revert_tree_selection(self, prev_id):
         self._handling_select = True
@@ -2148,10 +2368,30 @@ class FFXAIToolGUI:
         btn_scan.grid(row=0, column=3, padx=(0, 10))
         self.bind_hover(btn_scan, is_primary=True)
         
-        btn_scale_all = tk.Button(self.top_panel, text="⚖️ Batch Scale...", command=self.open_batch_scale_dialog, bg=self.card_color, 
+        btn_scale_all = tk.Button(self.top_panel, text="⚖️ Scale...", command=self.open_batch_scale_dialog, bg=self.card_color, 
                                   fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_scale_all.grid(row=0, column=4)
+        btn_scale_all.grid(row=0, column=4, padx=(0, 6))
         self.bind_hover(btn_scale_all, is_primary=False)
+        
+        btn_random = tk.Button(self.top_panel, text="🎲 Randomizer...", command=self.open_randomizer_dialog, bg=self.card_color, 
+                               fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_random.grid(row=0, column=5, padx=(0, 6))
+        self.bind_hover(btn_random, is_primary=False)
+        
+        btn_diff = tk.Button(self.top_panel, text="📊 Stat Diff...", command=self.open_stat_diff_dialog, bg=self.card_color, 
+                             fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_diff.grid(row=0, column=6, padx=(0, 6))
+        self.bind_hover(btn_diff, is_primary=False)
+        
+        btn_modpack = tk.Button(self.top_panel, text="📦 Modpack...", command=self.open_modpack_dialog, bg=self.card_color, 
+                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_modpack.grid(row=0, column=7, padx=(0, 6))
+        self.bind_hover(btn_modpack, is_primary=False)
+        
+        btn_wiki = tk.Button(self.top_panel, text="📄 Bestiary...", command=self.export_bestiary_card, bg=self.card_color, 
+                             fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_wiki.grid(row=0, column=8)
+        self.bind_hover(btn_wiki, is_primary=False)
         
         # Middle Body split into Left Panel and Right Notebook
         self.body_paned = ttk.PanedWindow(self.main_container, orient="horizontal")
@@ -2162,11 +2402,20 @@ class FFXAIToolGUI:
         
         # Search monster
         sf = ttk.Frame(self.left_panel)
-        sf.pack(fill="x", side="top", pady=(0, 10))
+        sf.pack(fill="x", side="top", pady=(0, 4))
         ttk.Label(sf, text="🔍 Filter:").pack(side="left", padx=(0, 5))
         self.ent_search_mon = ttk.Entry(sf)
         self.ent_search_mon.pack(fill="x", expand=True, side="left")
         self.ent_search_mon.bind("<KeyRelease>", self.filter_monsters)
+        
+        # Zone filter
+        zf = ttk.Frame(self.left_panel)
+        zf.pack(fill="x", side="top", pady=(0, 8))
+        ttk.Label(zf, text="🗺️ Zone:").pack(side="left", padx=(0, 5))
+        self.cmb_zone_filter = ttk.Combobox(zf, values=ZONE_CATEGORIES, state="readonly", width=18)
+        self.cmb_zone_filter.set("All Zones")
+        self.cmb_zone_filter.pack(fill="x", expand=True, side="left")
+        self.cmb_zone_filter.bind("<<ComboboxSelected>>", self.filter_monsters)
         
         # Monster List
         tree_frame = ttk.Frame(self.left_panel)
@@ -2182,6 +2431,8 @@ class FFXAIToolGUI:
         # Right click context menu setup
         self.menu_monster = tk.Menu(self.root, tearoff=0, bg=self.card_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="#ffffff")
         self.menu_monster.add_command(label="Restore from Backup (.bak)", command=self.on_restore_monster_backup)
+        self.menu_monster.add_command(label="📊 Compare with Backup (Stat Diff)...", command=self.open_stat_diff_dialog)
+        self.menu_monster.add_command(label="📄 Export Bestiary Card...", command=self.export_bestiary_card)
         self.menu_monster.add_separator()
         self.menu_monster.add_command(label="Batch Scale Selected Stats...", command=self.on_batch_scale_selected)
         self.menu_monster.add_command(label="Make Selected Status Immune...", command=self.on_batch_immune_selected)
@@ -2730,6 +2981,26 @@ class FFXAIToolGUI:
         self.var_arena_price = tk.StringVar(value="0")
         tk.Spinbox(grp_bribe, from_=0, to=9999999, textvariable=self.var_arena_price, width=12, bg=self.card_color, fg=self.text_color).grid(row=1, column=3, sticky="w", pady=5, padx=5)
 
+        # Equipment Drop Properties
+        grp_gear = ttk.LabelFrame(scroll_frame, text=" Equipment Drops & Slot Properties ", padding=10)
+        grp_gear.pack(fill="x", padx=10, pady=5)
+        
+        ttk.Label(grp_gear, text="Weapon Drop Bias (0-255):").grid(row=0, column=0, sticky="w", pady=5)
+        self.var_weapon_bias = tk.StringVar(value="128")
+        tk.Spinbox(grp_gear, from_=0, to=255, textvariable=self.var_weapon_bias, width=8, bg=self.card_color, fg=self.text_color).grid(row=0, column=1, sticky="w", pady=5, padx=5)
+        
+        ttk.Label(grp_gear, text="Max Slots (1-4):").grid(row=0, column=2, sticky="w", pady=5, padx=(15, 0))
+        self.var_max_slots = tk.StringVar(value="4")
+        tk.Spinbox(grp_gear, from_=1, to=4, textvariable=self.var_max_slots, width=6, bg=self.card_color, fg=self.text_color).grid(row=0, column=3, sticky="w", pady=5, padx=5)
+        
+        ttk.Label(grp_gear, text="Slot Variance (0-4):").grid(row=0, column=4, sticky="w", pady=5, padx=(15, 0))
+        self.var_slot_variance = tk.StringVar(value="0")
+        tk.Spinbox(grp_gear, from_=0, to=4, textvariable=self.var_slot_variance, width=6, bg=self.card_color, fg=self.text_color).grid(row=0, column=5, sticky="w", pady=5, padx=5)
+        
+        ttk.Label(grp_gear, text="Auto-Ability Bonus Weight:").grid(row=1, column=0, sticky="w", pady=5)
+        self.var_ability_weight = tk.StringVar(value="0")
+        tk.Spinbox(grp_gear, from_=0, to=255, textvariable=self.var_ability_weight, width=8, bg=self.card_color, fg=self.text_color).grid(row=1, column=1, sticky="w", pady=5, padx=5)
+
     def build_player_stats_tab(self, parent):
         top_frame = ttk.Frame(parent)
         top_frame.pack(fill="x", pady=(0, 10))
@@ -3008,9 +3279,529 @@ class FFXAIToolGUI:
         
         self.cvs_flowchart.configure(scrollregion=(0, 0, 500, current_y + 50))
 
-    def on_atel_notebook_tab_changed(self, event=None):
-        tab_idx = self.notebook.index("current")
+    def setup_shortcuts(self):
+        self.root.bind("<Control-s>", lambda e: self.apply_save())
+        self.root.bind("<Control-S>", lambda e: self.save_all_to_disk())
+        self.root.bind("<Control-f>", lambda e: (self.ent_search_mon.focus_set(), self.ent_search_mon.select_range(0, tk.END)))
+        self.root.bind("<F5>", lambda e: self.scan_monsters())
+        self.root.bind("<Control-d>", lambda e: self.open_stat_diff_dialog())
+
+    def setup_syntax_highlighting(self):
+        if not hasattr(self, "txt_atel"):
+            return
+        self.txt_atel.tag_configure("kw", foreground="#c084fc", font=("Consolas", 10, "bold"))
+        self.txt_atel.tag_configure("func", foreground="#60a5fa", font=("Consolas", 10, "bold"))
+        self.txt_atel.tag_configure("lbl", foreground="#38bdf8", font=("Consolas", 10, "bold"))
+        self.txt_atel.tag_configure("reg", foreground="#fb923c")
+        self.txt_atel.tag_configure("num", foreground="#34d399")
+        self.txt_atel.tag_configure("comment", foreground="#9ca3af", font=("Consolas", 10, "italic"))
+        self.txt_atel.tag_configure("str", foreground="#fde047")
+
+    def apply_atel_syntax_highlighting(self):
+        if not hasattr(self, "txt_atel"):
+            return
+        content = self.txt_atel.get("1.0", tk.END)
+        for tag in ["kw", "func", "lbl", "reg", "num", "comment", "str"]:
+            self.txt_atel.tag_remove(tag, "1.0", tk.END)
+        
+        import re
+        patterns = [
+            ("comment", r"(//.*$|#.*$)"),
+            ("lbl", r"\b(w\d+_Label_\d+|w\d+_f\d+|label_\d+|Label_\d+)\b:?"),
+            ("kw", r"\b(if|goto|return|halt|pass|def|case|switch|and|or|not)\b"),
+            ("func", r"\b(BuildAction|ExecuteAction|GetProperty|GetRandomValue|checkTargetStatus|checkTargetElement|targetDistToParty|wait|halt|loadModel|setPosition|setMovementSpeed|call_[0-9A-Fa-f]+)\b"),
+            ("reg", r"\b(rA|rX|rY|var_[0-9A-Fa-f]+|refInts|refFloats|I\d+|F\d+)\b"),
+            ("num", r"\b(0x[0-9A-Fa-f]+|-?\d+)\b"),
+            ("str", r'"[^"\n]*"'),
+        ]
+        for tag, pattern in patterns:
+            for match in re.finditer(pattern, content, re.MULTILINE):
+                start = f"1.0 + {match.start()} chars"
+                end = f"1.0 + {match.end()} chars"
+                self.txt_atel.tag_add(tag, start, end)
+
+    def open_stat_diff_dialog(self):
+        if not self.current_monster:
+            messagebox.showwarning("Warning", "Please select a monster first.")
+            return
+            
+        m_id = self.current_monster["id"]
+        filepath = self.current_monster["path"]
+        bak_path = filepath + ".bak"
+        
+        orig_bytes_us = None
+        orig_loot = None
+        if os.path.exists(bak_path):
+            try:
+                with open(bak_path, "rb") as f:
+                    bak_data = f.read()
+                bak_chunks = packer.unpack_chunks(bak_data)
+                if len(bak_chunks) > 6:
+                    orig_bytes_us = bak_chunks[6]
+                    orig_loot = bak_chunks[4]
+            except Exception as e:
+                self.log(f"Error loading .bak file: {e}", "error")
+                
+        # Dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"📊 Stat Diff Comparison — {m_id} ({self.current_monster['name']})")
+        dialog.geometry("750x600")
+        dialog.minsize(650, 450)
+        dialog.configure(bg=self.bg_color)
+        dialog.transient(self.root)
+        
+        # Header
+        top_f = tk.Frame(dialog, bg=self.bg_color)
+        top_f.pack(fill="x", padx=15, pady=(15, 10))
+        tk.Label(top_f, text=f"📊 Stat Variance Comparison: {self.current_monster['name']} ({m_id})", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 13, "bold")).pack(side="left")
+        
+        status_txt = "Comparing Current vs Original Backup (.bak)" if orig_bytes_us else "No .bak file found (Comparing against current values)"
+        tk.Label(dialog, text=status_txt, bg=self.bg_color, fg=self.text_dim, font=("Segoe UI", 9, "italic")).pack(padx=15, anchor="w", pady=(0, 10))
+        
+        # Table
+        tree_f = ttk.Frame(dialog)
+        tree_f.pack(fill="both", expand=True, padx=15, pady=5)
+        
+        tree = ttk.Treeview(tree_f, columns=("Category", "Stat", "Original", "Current", "Diff", "Change"), show="headings")
+        tree.heading("Category", text="Category")
+        tree.heading("Stat", text="Attribute")
+        tree.heading("Original", text="Original (.bak)")
+        tree.heading("Current", text="Current (Modified)")
+        tree.heading("Diff", text="Variance")
+        tree.heading("Change", text="% Change")
+        
+        tree.column("Category", width=110, anchor="w")
+        tree.column("Stat", width=140, anchor="w")
+        tree.column("Original", width=100, anchor="center")
+        tree.column("Current", width=100, anchor="center")
+        tree.column("Diff", width=90, anchor="center")
+        tree.column("Change", width=90, anchor="center")
+        
+        tree.tag_configure("buff", background="#064e3b", foreground="#6ee7b7")
+        tree.tag_configure("nerf", background="#450a0a", foreground="#fca5a5")
+        tree.tag_configure("neutral", foreground=self.text_color)
+        
+        scroll = ttk.Scrollbar(tree_f, command=tree.yview)
+        scroll.pack(fill="y", side="right")
+        tree.config(yscrollcommand=scroll.set)
+        tree.pack(fill="both", expand=True, side="left")
+        
+        def get_stat_u32(block, offset):
+            return struct.unpack("<I", block[offset:offset+4])[0] if block and len(block) >= offset+4 else 0
+        def get_stat_u16(block, offset):
+            return struct.unpack("<H", block[offset:offset+2])[0] if block and len(block) >= offset+2 else 0
+        def get_stat_u8(block, offset):
+            return block[offset] if block and len(block) > offset else 0
+
+        stats_list = [
+            ("Core", "HP", get_stat_u32(orig_bytes_us, 0x00) if orig_bytes_us else int(self.var_hp.get()), int(self.var_hp.get())),
+            ("Core", "MP", get_stat_u32(orig_bytes_us, 0x04) if orig_bytes_us else int(self.var_mp.get()), int(self.var_mp.get())),
+            ("Core", "Overkill HP", get_stat_u32(orig_bytes_us, 0x08) if orig_bytes_us else int(self.var_overkill.get()), int(self.var_overkill.get())),
+            ("Core", "Strength", get_stat_u8(orig_bytes_us, 0x0C) if orig_bytes_us else int(self.var_str.get()), int(self.var_str.get())),
+            ("Core", "Defense", get_stat_u8(orig_bytes_us, 0x0D) if orig_bytes_us else int(self.var_def.get()), int(self.var_def.get())),
+            ("Core", "Magic", get_stat_u8(orig_bytes_us, 0x0E) if orig_bytes_us else int(self.var_mag.get()), int(self.var_mag.get())),
+            ("Core", "Magic Defense", get_stat_u8(orig_bytes_us, 0x0F) if orig_bytes_us else int(self.var_mdf.get()), int(self.var_mdf.get())),
+            ("Core", "Agility", get_stat_u8(orig_bytes_us, 0x10) if orig_bytes_us else int(self.var_agi.get()), int(self.var_agi.get())),
+            ("Core", "Luck", get_stat_u8(orig_bytes_us, 0x11) if orig_bytes_us else int(self.var_lck.get()), int(self.var_lck.get())),
+            ("Core", "Evasion", get_stat_u8(orig_bytes_us, 0x12) if orig_bytes_us else int(self.var_eva.get()), int(self.var_eva.get())),
+            ("Core", "Accuracy", get_stat_u8(orig_bytes_us, 0x13) if orig_bytes_us else int(self.var_acc.get()), int(self.var_acc.get())),
+            ("Loot", "Gil", get_stat_u16(orig_loot, 0x00) if orig_loot else int(self.var_gil.get()), int(self.var_gil.get())),
+            ("Loot", "AP (Normal)", get_stat_u16(orig_loot, 0x02) if orig_loot else int(self.var_ap_n.get()), int(self.var_ap_n.get())),
+            ("Loot", "AP (Overkill)", get_stat_u16(orig_loot, 0x04) if orig_loot else int(self.var_ap_o.get()), int(self.var_ap_o.get())),
+            ("Resistances", "Death Res", get_stat_u8(orig_bytes_us, 0x20) if orig_bytes_us else int(self.var_res_death.get()), int(self.var_res_death.get())),
+            ("Resistances", "Petrify Res", get_stat_u8(orig_bytes_us, 0x22) if orig_bytes_us else int(self.var_res_petrify.get()), int(self.var_res_petrify.get())),
+            ("Resistances", "Poison Res", get_stat_u8(orig_bytes_us, 0x23) if orig_bytes_us else int(self.var_res_poison.get()), int(self.var_res_poison.get())),
+            ("Resistances", "Silence Res", get_stat_u8(orig_bytes_us, 0x29) if orig_bytes_us else int(self.var_res_silence.get()), int(self.var_res_silence.get())),
+            ("Resistances", "Darkness Res", get_stat_u8(orig_bytes_us, 0x2A) if orig_bytes_us else int(self.var_res_darkness.get()), int(self.var_res_darkness.get())),
+            ("Resistances", "Slow Res", get_stat_u8(orig_bytes_us, 0x2C) if orig_bytes_us else int(self.var_res_slow.get()), int(self.var_res_slow.get())),
+        ]
+        
+        for cat, name, orig, curr in stats_list:
+            diff = curr - orig
+            diff_str = f"+{diff}" if diff > 0 else str(diff)
+            if orig > 0 and diff != 0:
+                pct = ((curr - orig) / orig) * 100.0
+                pct_str = f"+{pct:.1f}%" if pct > 0 else f"{pct:.1f}%"
+            elif diff != 0:
+                pct_str = "N/A"
+            else:
+                pct_str = "-"
+                
+            tag = "buff" if diff > 0 else ("nerf" if diff < 0 else "neutral")
+            tree.insert("", tk.END, values=(cat, name, str(orig), str(curr), diff_str, pct_str), tags=(tag,))
+
+    def open_randomizer_dialog(self):
+        import random
+        dialog = tk.Toplevel(self.root)
+        dialog.title("🎲 Monster Randomizer Suite")
+        dialog.geometry("480x720")
+        dialog.resizable(False, False)
+        dialog.configure(bg=self.bg_color)
+        dialog.transient(self.root)
+        
+        # Header
+        lbl_h = tk.Label(dialog, text="🎲 Monster Randomizer", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 14, "bold"))
+        lbl_h.pack(pady=(15, 5))
+        lbl_s = tk.Label(dialog, text="Randomize monster stats, affinities, loot tables, and AI routines.", bg=self.bg_color, fg=self.text_dim, font=("Segoe UI", 9, "italic"))
+        lbl_s.pack(pady=(0, 15))
+        
+        # Options Frame
+        opt_frame = tk.LabelFrame(dialog, text=" Randomizer Options ", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), padx=15, pady=10)
+        opt_frame.pack(fill="x", padx=30, pady=(0, 10))
+        
+        var_rnd_stats = tk.BooleanVar(value=True)
+        var_rnd_elems = tk.BooleanVar(value=True)
+        var_rnd_res = tk.BooleanVar(value=True)
+        var_rnd_loot = tk.BooleanVar(value=True)
+        var_rnd_ai = tk.BooleanVar(value=False)
+        
+        tk.Checkbutton(opt_frame, text="Randomize Base Stats (HP, Str, Def, Mag, Agi)", variable=var_rnd_stats, bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.text_color).pack(anchor="w", pady=2)
+        tk.Checkbutton(opt_frame, text="Randomize Elemental Affinities (Weak/Resist/Absorb)", variable=var_rnd_elems, bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.text_color).pack(anchor="w", pady=2)
+        tk.Checkbutton(opt_frame, text="Randomize Status Resistances", variable=var_rnd_res, bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.text_color).pack(anchor="w", pady=2)
+        tk.Checkbutton(opt_frame, text="Randomize Item Drops & Steals", variable=var_rnd_loot, bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.text_color).pack(anchor="w", pady=2)
+        tk.Checkbutton(opt_frame, text="Shuffle Battle AI Actions", variable=var_rnd_ai, bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.text_color).pack(anchor="w", pady=2)
+        
+        # Scaling Bounds Frame
+        bnd_frame = tk.LabelFrame(dialog, text=" Stat Scaling Bounds & Seed ", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), padx=15, pady=10)
+        bnd_frame.pack(fill="x", padx=30, pady=(0, 10))
+        
+        f1 = tk.Frame(bnd_frame, bg=self.bg_color)
+        f1.pack(fill="x", pady=4)
+        tk.Label(f1, text="Min Stat Multiplier:", bg=self.bg_color, fg=self.text_color).pack(side="left")
+        var_min_m = tk.StringVar(value="0.7")
+        ttk.Entry(f1, textvariable=var_min_m, width=8).pack(side="right")
+        
+        f2 = tk.Frame(bnd_frame, bg=self.bg_color)
+        f2.pack(fill="x", pady=4)
+        tk.Label(f2, text="Max Stat Multiplier:", bg=self.bg_color, fg=self.text_color).pack(side="left")
+        var_max_m = tk.StringVar(value="1.6")
+        ttk.Entry(f2, textvariable=var_max_m, width=8).pack(side="right")
+        
+        f3 = tk.Frame(bnd_frame, bg=self.bg_color)
+        f3.pack(fill="x", pady=4)
+        tk.Label(f3, text="Random Seed (optional):", bg=self.bg_color, fg=self.text_color).pack(side="left")
+        var_seed = tk.StringVar(value="")
+        ttk.Entry(f3, textvariable=var_seed, width=14).pack(side="right")
+        
+        def run_randomize():
+            seed_val = var_seed.get().strip()
+            if seed_val:
+                try:
+                    random.seed(int(seed_val))
+                except ValueError:
+                    random.seed(seed_val)
+                    
+            try:
+                min_m = float(var_min_m.get())
+                max_m = float(var_max_m.get())
+            except ValueError:
+                messagebox.showerror("Error", "Invalid min/max multipliers.")
+                return
+                
+            path = self.ent_master_path.get().strip()
+            if not path or not os.path.exists(path):
+                messagebox.showerror("Error", "Invalid master directory.")
+                return
+                
+            mon_dir = os.path.join(path, "jppc", "battle", "mon")
+            if not os.path.exists(mon_dir):
+                if path.endswith(os.path.join("battle", "mon")):
+                    mon_dir = path
+                else:
+                    messagebox.showerror("Error", "Could not find battle/mon directory.")
+                    return
+                    
+            count = 0
+            for fname in os.listdir(mon_dir):
+                if not (fname.startswith("m") and fname.endswith(".bin")):
+                    continue
+                fpath = os.path.join(mon_dir, fname)
+                bak_path = fpath + ".bak"
+                if not os.path.exists(bak_path):
+                    shutil.copy2(fpath, bak_path)
+                    
+                with open(bak_path, "rb") as f:
+                    data = f.read()
+                chunks = packer.unpack_chunks(data)
+                if len(chunks) < 7:
+                    continue
+                    
+                # 1. Randomize stats (chunks 2 and 6)
+                for chunk_idx in [2, 6]:
+                    c = bytearray(chunks[chunk_idx])
+                    if len(c) < 128:
+                        continue
+                    if var_rnd_stats.get():
+                        hp = struct.unpack("<I", c[0x00:0x04])[0]
+                        mp = struct.unpack("<I", c[0x04:0x08])[0]
+                        ok = struct.unpack("<I", c[0x08:0x0C])[0]
+                        hp_m = random.uniform(min_m, max_m)
+                        struct.pack_into("<I", c, 0x00, min(99999999, max(1, int(hp * hp_m))))
+                        struct.pack_into("<I", c, 0x04, min(9999, max(0, int(mp * random.uniform(min_m, max_m)))))
+                        struct.pack_into("<I", c, 0x08, min(99999999, max(1, int(ok * hp_m))))
+                        
+                        for off in [0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13]:
+                            val = c[off]
+                            new_val = min(255, max(1, int(val * random.uniform(min_m, max_m))))
+                            c[off] = new_val
+                            
+                    if var_rnd_elems.get():
+                        c[0x18] = random.randint(0, 31)
+                        c[0x19] = random.randint(0, 31)
+                        c[0x1A] = random.randint(0, 31)
+                        c[0x1B] = random.randint(0, 31)
+                        
+                    if var_rnd_res.get():
+                        for off in range(0x20, 0x30):
+                            c[off] = random.choice([0, 50, 100, 255])
+                            
+                    chunks[chunk_idx] = bytes(c)
+                    
+                # 2. Randomize loot (chunk 4)
+                if var_rnd_loot.get() and self.items_list:
+                    l = bytearray(chunks[4])
+                    if len(l) >= 0x30:
+                        for off in [0x0C, 0x0E, 0x10, 0x12, 0x18, 0x1A, 0x1C, 0x1E, 0x24, 0x26]:
+                            rand_item = random.choice(self.items_list)[0]
+                            struct.pack_into("<H", l, off, rand_item)
+                        chunks[4] = bytes(l)
+                        
+                new_data = packer.repack_chunks(chunks)
+                packer.safe_atomic_write(fpath, new_data)
+                count += 1
+                
+            self.monster_cache.clear()
+            self.scan_monsters()
+            dialog.destroy()
+            messagebox.showinfo("Success", f"Randomized {count} monsters successfully!")
+            
+        btn_run = tk.Button(dialog, text="🎲 Run Randomizer", command=run_randomize, bg=self.accent_color, fg="white", font=("Segoe UI", 10, "bold"), relief="flat", activebackground=self.accent_hover, height=2)
+        btn_run.pack(fill="x", padx=30, pady=(15, 5))
+        self.bind_hover(btn_run, is_primary=True)
+
+    def open_modpack_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("📦 FFX Modpack Manager")
+        dialog.geometry("400x260")
+        dialog.resizable(False, False)
+        dialog.configure(bg=self.bg_color)
+        dialog.transient(self.root)
+        
+        tk.Label(dialog, text="📦 Modpack Manager", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 14, "bold")).pack(pady=(15, 5))
+        tk.Label(dialog, text="Export or import lightweight modpack patches (.ffxmod).", bg=self.bg_color, fg=self.text_dim, font=("Segoe UI", 9, "italic")).pack(pady=(0, 20))
+        
+        btn_exp = tk.Button(dialog, text="📤 Export Modpack (.ffxmod)...", command=lambda: (dialog.destroy(), self.export_modpack()), bg=self.card_color, fg=self.text_color, font=("Segoe UI", 10, "bold"), relief="flat", height=2)
+        btn_exp.pack(fill="x", padx=40, pady=5)
+        self.bind_hover(btn_exp)
+        
+        btn_imp = tk.Button(dialog, text="📥 Import & Apply Modpack...", command=lambda: (dialog.destroy(), self.import_modpack()), bg=self.accent_color, fg="white", font=("Segoe UI", 10, "bold"), relief="flat", height=2)
+        btn_imp.pack(fill="x", padx=40, pady=5)
+        self.bind_hover(btn_imp, is_primary=True)
+
+    def export_modpack(self):
+        f = filedialog.asksaveasfilename(defaultextension=".ffxmod", filetypes=[("FFX Modpack", "*.ffxmod"), ("JSON Files", "*.json")], title="Export FFX Modpack")
+        if not f:
+            return
+            
+        mod_data = {
+            "format": "FFX-MOD-v1",
+            "name": "Custom FFX Balance Mod",
+            "version": "1.0",
+            "monsters": {}
+        }
+        
+        for m_id, entry in self.monster_cache.items():
+            if entry.get("chunks"):
+                chunks_hex = [c.hex() for c in entry["chunks"]]
+                mod_data["monsters"][m_id] = {
+                    "name": entry.get("us_name", m_id),
+                    "chunks": chunks_hex
+                }
+                
         try:
+            with open(f, "w") as fp:
+                json.dump(mod_data, fp, indent=2)
+            self.log(f"Exported modpack with {len(mod_data['monsters'])} monsters to {f}.", "success")
+            messagebox.showinfo("Success", f"Modpack exported successfully ({len(mod_data['monsters'])} monsters)!")
+        except Exception as e:
+            self.log(f"Failed to export modpack: {e}", "error")
+            messagebox.showerror("Error", f"Failed to export modpack:\n{e}")
+
+    def import_modpack(self):
+        f = filedialog.askopenfilename(filetypes=[("FFX Modpack", "*.ffxmod"), ("JSON Files", "*.json")], title="Import FFX Modpack")
+        if not f or not os.path.exists(f):
+            return
+            
+        try:
+            with open(f, "r") as fp:
+                mod_data = json.load(fp)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to read modpack file:\n{e}")
+            return
+            
+        monsters = mod_data.get("monsters", {})
+        if not monsters:
+            messagebox.showwarning("Warning", "No monster data found in this modpack.")
+            return
+            
+        path = self.ent_master_path.get().strip()
+        mon_dir = os.path.join(path, "jppc", "battle", "mon") if path else ""
+        if not mon_dir or not os.path.exists(mon_dir):
+            if path and path.endswith(os.path.join("battle", "mon")):
+                mon_dir = path
+            else:
+                messagebox.showerror("Error", "Please configure a valid master folder before importing.")
+                return
+                
+        applied = 0
+        for m_id, m_info in monsters.items():
+            fpath = os.path.join(mon_dir, f"{m_id}.bin")
+            if not os.path.exists(fpath):
+                continue
+            bak_path = fpath + ".bak"
+            if not os.path.exists(bak_path):
+                shutil.copy2(fpath, bak_path)
+                
+            chunks_hex = m_info.get("chunks", [])
+            if chunks_hex:
+                chunks = [bytes.fromhex(ch) for ch in chunks_hex]
+                repacked = packer.repack_chunks(chunks)
+                packer.safe_atomic_write(fpath, repacked)
+                applied += 1
+                
+        self.monster_cache.clear()
+        self.scan_monsters()
+        self.log(f"Imported modpack '{mod_data.get('name', 'Mod')}' with {applied} monsters.", "success")
+        messagebox.showinfo("Success", f"Applied modpack to {applied} monsters successfully!")
+
+    def export_bestiary_card(self):
+        if not self.current_monster:
+            messagebox.showwarning("Warning", "Please select a monster first.")
+            return
+            
+        m_id = self.current_monster["id"]
+        m_name = self.current_monster["name"]
+        m_zone = MONSTER_ZONE_MAP.get(m_id, "Spira Field")
+        
+        f = filedialog.asksaveasfilename(
+            defaultextension=".html",
+            filetypes=[("HTML Report", "*.html"), ("Markdown Page", "*.md")],
+            title=f"Export Bestiary Card for {m_name}",
+            initialfile=f"{m_id}_{m_name.replace(' ', '_')}_bestiary.html"
+        )
+        if not f:
+            return
+            
+        is_html = f.endswith(".html") or f.endswith(".htm")
+        
+        if is_html:
+            html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{m_name} ({m_id}) — Bestiary Card</title>
+<style>
+  body {{ background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; padding: 30px; margin: 0; }}
+  .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 12px; max-width: 800px; margin: 0 auto; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
+  .header {{ background: linear-gradient(135deg, #1e3a8a, #3b82f6); padding: 20px; color: white; }}
+  .header h1 {{ margin: 0; font-size: 26px; }}
+  .header .meta {{ color: #bfdbfe; font-size: 14px; margin-top: 4px; }}
+  .section {{ padding: 20px; border-bottom: 1px solid #334155; }}
+  .section h2 {{ color: #60a5fa; font-size: 16px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px; }}
+  .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }}
+  .stat-box {{ background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px; text-align: center; }}
+  .stat-label {{ font-size: 12px; color: #94a3b8; text-transform: uppercase; }}
+  .stat-value {{ font-size: 20px; font-weight: bold; color: #38bdf8; margin-top: 2px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
+  th, td {{ padding: 8px 12px; text-align: left; border-bottom: 1px solid #334155; }}
+  th {{ background: #0f172a; color: #94a3b8; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h1>{m_name}</h1>
+    <div class="meta">ID: {m_id} &bull; Zone: {m_zone} &bull; Arena ID: {self.var_arena_idx.get()}</div>
+  </div>
+  <div class="section">
+    <h2>Core Attributes</h2>
+    <div class="grid">
+      <div class="stat-box"><div class="stat-label">HP</div><div class="stat-value">{int(self.var_hp.get()):,}</div></div>
+      <div class="stat-box"><div class="stat-label">MP</div><div class="stat-value">{int(self.var_mp.get()):,}</div></div>
+      <div class="stat-box"><div class="stat-label">Overkill</div><div class="stat-value">{int(self.var_overkill.get()):,}</div></div>
+      <div class="stat-box"><div class="stat-label">Strength</div><div class="stat-value">{self.var_str.get()}</div></div>
+      <div class="stat-box"><div class="stat-label">Defense</div><div class="stat-value">{self.var_def.get()}</div></div>
+      <div class="stat-box"><div class="stat-label">Magic</div><div class="stat-value">{self.var_mag.get()}</div></div>
+      <div class="stat-box"><div class="stat-label">Magic Def</div><div class="stat-value">{self.var_mdf.get()}</div></div>
+      <div class="stat-box"><div class="stat-label">Agility</div><div class="stat-value">{self.var_agi.get()}</div></div>
+      <div class="stat-box"><div class="stat-label">Luck</div><div class="stat-value">{self.var_lck.get()}</div></div>
+      <div class="stat-box"><div class="stat-label">Evasion</div><div class="stat-value">{self.var_eva.get()}</div></div>
+      <div class="stat-box"><div class="stat-label">Accuracy</div><div class="stat-value">{self.var_acc.get()}</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Elemental Affinities</h2>
+    <table>
+      <tr><th>Fire</th><th>Ice</th><th>Thunder</th><th>Water</th><th>Holy</th></tr>
+      <tr>
+        <td>{self.cmb_elem_fire.get()}</td>
+        <td>{self.cmb_elem_ice.get()}</td>
+        <td>{self.cmb_elem_thunder.get()}</td>
+        <td>{self.cmb_elem_water.get()}</td>
+        <td>{self.cmb_elem_holy.get()}</td>
+      </tr>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Rewards & Loot</h2>
+    <table>
+      <tr><th>Gil</th><td>{int(self.var_gil.get()):,}</td><th>Steal (Common)</th><td>{self.cmb_steal_c.get()} (x{self.var_qty_steal_c.get()})</td></tr>
+      <tr><th>AP (Normal)</th><td>{int(self.var_ap_n.get()):,}</td><th>Steal (Rare)</th><td>{self.cmb_steal_r.get()} (x{self.var_qty_steal_r.get()})</td></tr>
+      <tr><th>AP (Overkill)</th><td>{int(self.var_ap_o.get()):,}</td><th>Drop (Common)</th><td>{self.cmb_drop_n_p_c.get()} (x{self.var_qty_drop_n_p_c.get()})</td></tr>
+      <tr><th>Bribe</th><td>{self.cmb_bribe_item.get()} (x{self.var_qty_bribe.get()})</td><th>Drop (Rare)</th><td>{self.cmb_drop_n_p_r.get()} (x{self.var_qty_drop_n_p_r.get()})</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>"""
+            with open(f, "w", encoding="utf-8") as fp:
+                fp.write(html_content)
+        else:
+            md_content = f"""# {m_name} ({m_id})
+
+**Zone:** {m_zone}  
+**Arena Index:** {self.var_arena_idx.get()}  
+
+## Core Attributes
+| HP | MP | Overkill | Str | Def | Mag | MDef | Agi | Lck | Eva | Acc |
+|---|---|---|---|---|---|---|---|---|---|---|
+| {int(self.var_hp.get()):,} | {int(self.var_mp.get()):,} | {int(self.var_overkill.get()):,} | {self.var_str.get()} | {self.var_def.get()} | {self.var_mag.get()} | {self.var_mdf.get()} | {self.var_agi.get()} | {self.var_lck.get()} | {self.var_eva.get()} | {self.var_acc.get()} |
+
+## Elemental Affinities
+- **Fire:** {self.cmb_elem_fire.get()}
+- **Ice:** {self.cmb_elem_ice.get()}
+- **Thunder:** {self.cmb_elem_thunder.get()}
+- **Water:** {self.cmb_elem_water.get()}
+- **Holy:** {self.cmb_elem_holy.get()}
+
+## Loot & Rewards
+- **Gil:** {int(self.var_gil.get()):,}
+- **AP:** {int(self.var_ap_n.get()):,} (Normal) / {int(self.var_ap_o.get()):,} (Overkill)
+- **Steal (Common):** {self.cmb_steal_c.get()} (x{self.var_qty_steal_c.get()})
+- **Steal (Rare):** {self.cmb_steal_r.get()} (x{self.var_qty_steal_r.get()})
+- **Drop (Common):** {self.cmb_drop_n_p_c.get()} (x{self.var_qty_drop_n_p_c.get()})
+- **Drop (Rare):** {self.cmb_drop_n_p_r.get()} (x{self.var_qty_drop_n_p_r.get()})
+- **Bribe:** {self.cmb_bribe_item.get()} (x{self.var_qty_bribe.get()})
+"""
+            with open(f, "w", encoding="utf-8") as fp:
+                fp.write(md_content)
+                
+        self.log(f"Exported bestiary card for {m_name} to {f}", "success")
+        messagebox.showinfo("Success", f"Bestiary card exported successfully to:\n{f}")
+
+    def on_atel_notebook_tab_changed(self, event=None):
+        try:
+            tab_idx = self.notebook.index("current")
             tab_text = self.notebook.tab(tab_idx, "text")
             if "Flowchart" in tab_text:
                 self.draw_flowchart()

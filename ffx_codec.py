@@ -263,9 +263,13 @@ class FFXCodec:
             pc = int(cmd[3:], 16)
             return [0x13, pc + 0x30]
         elif cmd.startswith("MCR:") or cmd.startswith("MACRO:"):
-            section = int(cmd[5:7], 16) + 0x13
-            line = int(cmd[8:10], 16) + 0x30
-            return [section, line]
+            param = cmd.split(":", 1)[1]
+            if "s" in param and "l" in param:
+                s_part = param[param.find("s")+1 : param.find("l")]
+                l_part = param[param.find("l")+1 :]
+                section = int(s_part, 16) + 0x13
+                line = int(l_part, 16) + 0x30
+                return [section, line]
         elif cmd.startswith("KEY:"):
             key_item_idx = int(cmd[4:], 16)
             return [0x23, key_item_idx]
