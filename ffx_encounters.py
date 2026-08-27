@@ -254,6 +254,82 @@ SPIRA_ENCOUNTERS = [
             {"monsters": [("m346", "Shinryu")], "rate": "Arena", "ambush": "0%"},
             {"monsters": [("m276", "Nemesis")], "rate": "Arena Final", "ambush": "0%"}
         ]
+    },
+    # 14. Dark Aeons & Superbosses
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Besaid Island (Village Entrance)",
+        "formations": [
+            {"monsters": [("m280", "Dark Valefor")], "rate": "Superboss", "ambush": "0%"},
+            {"monsters": [("m109", "Dark Valefor (Alt)")], "rate": "Superboss", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Sanubia Desert (Home Oasis)",
+        "formations": [
+            {"monsters": [("m281", "Dark Ifrit")], "rate": "Superboss", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Thunder Plains (North Section)",
+        "formations": [
+            {"monsters": [("m282", "Dark Ixion")], "rate": "Superboss", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Macalania (Temple Approach)",
+        "formations": [
+            {"monsters": [("m283", "Dark Shiva")], "rate": "Superboss", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Zanarkand Dome (Yunalesca Sanctum)",
+        "formations": [
+            {"monsters": [("m284", "Dark Bahamut")], "rate": "Superboss", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Cavern of the Stolen Fayth (Deep Chamber)",
+        "formations": [
+            {"monsters": [("m285", "Dark Yojimbo")], "rate": "5-Fight Superboss", "ambush": "25%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Mt. Gagazet (Cave Trail Entrance)",
+        "formations": [
+            {"monsters": [("m286", "Dark Anima")], "rate": "Superboss", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Mushroom Rock Road (Valley Ravine)",
+        "formations": [
+            {"monsters": [("m287", "Dark Cindy"), ("m288", "Dark Sandy"), ("m289", "Dark Mindy")], "rate": "Trio Superboss", "ambush": "0%"},
+            {"monsters": [("m287", "Dark Cindy")], "rate": "Solo Chase", "ambush": "0%"},
+            {"monsters": [("m288", "Dark Sandy")], "rate": "Solo Chase", "ambush": "0%"},
+            {"monsters": [("m289", "Dark Mindy")], "rate": "Solo Chase", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Airship Sky Deck (Spira Skies)",
+        "formations": [
+            {"monsters": [("m290", "Penance"), ("m291", "Left Arm"), ("m292", "Right Arm")], "rate": "Ultimate Superboss", "ambush": "0%"}
+        ]
+    },
+    {
+        "zone": "Dark Aeons & Superbosses",
+        "sub_area": "Omega Ruins Sanctum",
+        "formations": [
+            {"monsters": [("m099", "Ultima Weapon")], "rate": "Dungeon Boss", "ambush": "0%"},
+            {"monsters": [("m100", "Omega Weapon")], "rate": "Dungeon Superboss", "ambush": "0%"}
+        ]
     }
 ]
 

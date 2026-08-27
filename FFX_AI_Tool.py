@@ -84,7 +84,14 @@ MONSTER_ZONE_MAP = {
     "m342": "Monster Arena", "m343": "Monster Arena", "m344": "Monster Arena", "m345": "Monster Arena",
     "m346": "Monster Arena", "m276": "Monster Arena",
     # Dark Aeons & Superbosses
-    "m109": "Dark Aeons & Superbosses", "m099": "Dark Aeons & Superbosses", "m100": "Dark Aeons & Superbosses",
+    "m280": "Dark Aeons & Superbosses", "m109": "Dark Aeons & Superbosses",
+    "m281": "Dark Aeons & Superbosses", "m282": "Dark Aeons & Superbosses",
+    "m283": "Dark Aeons & Superbosses", "m284": "Dark Aeons & Superbosses",
+    "m285": "Dark Aeons & Superbosses", "m286": "Dark Aeons & Superbosses",
+    "m287": "Dark Aeons & Superbosses", "m288": "Dark Aeons & Superbosses",
+    "m289": "Dark Aeons & Superbosses", "m290": "Dark Aeons & Superbosses",
+    "m291": "Dark Aeons & Superbosses", "m292": "Dark Aeons & Superbosses",
+    "m099": "Dark Aeons & Superbosses", "m100": "Dark Aeons & Superbosses",
     # Story Bosses
     "m153": "Story Bosses", "m102": "Story Bosses", "m103": "Story Bosses", "m110": "Story Bosses",
     "m156": "Story Bosses", "m104": "Story Bosses", "m117": "Story Bosses", "m160": "Story Bosses",
