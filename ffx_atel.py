@@ -1183,165 +1183,258 @@ def inject_rules(original_bytes, rules, worker_idx=1, func_idx=2):
 
 
 def decompile_atel_to_rules(chunk0_bytes, worker_idx=1, func_idx=2):
+    """
+    Decompiles monster AI bytecode into high-level rule cards for the Visual Rule Builder.
+    Supports both synthetic rule blocks and real vanilla monster bytecode across all workers/functions.
+    """
     disasm = AtelDisassembler(chunk0_bytes)
     if not disasm.workers:
         return None
-    if worker_idx >= len(disasm.workers):
-        worker_idx = 0
-    worker = disasm.workers[worker_idx]
-    if func_idx >= len(worker["funcs"]):
-        func_idx = len(worker["funcs"]) - 1
-        if func_idx < 0:
-            return None
-    S = worker["funcs"][func_idx]
-    
-    entry_points = sorted(list(set(addr for w in disasm.workers for addr in w["funcs"])))
-    idx = entry_points.index(S)
-    E = entry_points[idx+1] if idx + 1 < len(entry_points) else len(disasm.bytecode)
-    
-    func_bytecode = disasm.bytecode[S:E]
-    
-    # Parse instructions
-    instructions = []
-    cursor = 0
-    while cursor < len(func_bytecode):
-        offset = cursor
-        opcode = func_bytecode[cursor]
-        cursor += 1
         
-        has_args = (opcode >= 0x80)
-        if has_args:
-            if cursor + 2 > len(func_bytecode):
+    # Helper to parse a bytecode slice into instruction tuples
+    def parse_func_instructions(func_bytecode):
+        insts = []
+        cursor = 0
+        while cursor < len(func_bytecode):
+            offset = cursor
+            opcode = func_bytecode[cursor]
+            cursor += 1
+            
+            has_args = (opcode >= 0x80)
+            if has_args:
+                if cursor + 2 > len(func_bytecode):
+                    break
+                arg1 = func_bytecode[cursor]
+                arg2 = func_bytecode[cursor+1]
+                cursor += 2
+                argv = arg1 + arg2 * 0x100
+                argv_signed = argv if argv < 0x8000 else (argv - 0x10000)
+            else:
+                argv_signed = 0
+                
+            insts.append((opcode, argv_signed, offset))
+        return insts
+
+    # PASS 1: Try strict synthetic round-trip decompile on designated function
+    target_w = worker_idx if worker_idx < len(disasm.workers) else 0
+    worker = disasm.workers[target_w]
+    target_f = func_idx if func_idx < len(worker["funcs"]) else (len(worker["funcs"]) - 1)
+    
+    if target_f >= 0:
+        S = worker["funcs"][target_f]
+        entry_points = sorted(list(set(addr for w in disasm.workers for addr in w["funcs"])))
+        idx = entry_points.index(S) if S in entry_points else -1
+        E = entry_points[idx+1] if (idx >= 0 and idx + 1 < len(entry_points)) else len(disasm.bytecode)
+        
+        func_bc = disasm.bytecode[S:E]
+        instructions = parse_func_instructions(func_bc)
+        
+        strict_rules = []
+        i = 0
+        n = len(instructions)
+        strict_match = True
+        
+        while i < n:
+            if instructions[i][0] == 0x3C: # RET
+                i += 1
+                continue
+                
+            chance = 100
+            condition = "Always"
+            
+            # Chance check pattern (7 instructions)
+            if (i + 6 < n and
+                instructions[i][0] == 0xB5 and instructions[i][1] == 0x00A9 and
+                instructions[i+1][0] == 0xAE and instructions[i+1][1] == 100 and
+                instructions[i+2][0] == 0x18 and
+                instructions[i+3][0] == 0xAE and
+                instructions[i+4][0] == 0x0B and
+                instructions[i+5][0] == 0x2A and
+                instructions[i+6][0] == 0xD7):
+                chance = instructions[i+3][1]
+                i += 7
+                
+            # Condition check patterns
+            if (i + 8 < n and
+                instructions[i][0] == 0xAE and instructions[i][1] == -14 and
+                instructions[i+1][0] == 0xAE and instructions[i+1][1] == 17 and
+                instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x700F and
+                instructions[i+3][0] == 0xAE and
+                instructions[i+4][0] == 0x18 and
+                instructions[i+5][0] == 0xAE and instructions[i+5][1] == 0 and
+                instructions[i+6][0] == 0x06 and
+                instructions[i+7][0] == 0x2A and
+                instructions[i+8][0] == 0xD7):
+                mod_val = instructions[i+3][1]
+                condition = f"Every {mod_val} Turns"
+                i += 9
+            elif (i + 6 < n and
+                  instructions[i][0] == 0xAE and instructions[i][1] == -16 and
+                  instructions[i+1][0] == 0xAE and
+                  instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x7001 and
+                  instructions[i+3][0] == 0xAE and
+                  instructions[i+4][0] == 0x06 and
+                  instructions[i+5][0] == 0x2A and
+                  instructions[i+6][0] == 0xD7):
+                status_id = instructions[i+1][1]
+                val = instructions[i+3][1]
+                if status_id == 33 and val == 1: condition = "Target: Has Reflect"
+                elif status_id == 31 and val == 1: condition = "Target: Has Protect"
+                elif status_id == 32 and val == 1: condition = "Target: Has Shell"
+                elif status_id == 35 and val == 1: condition = "Target: Has Haste"
+                elif status_id == 3 and val == 0: condition = "Target: Not Poisoned"
+                elif status_id == 4 and val == 0: condition = "Target: Not Silenced"
+                elif status_id == 5 and val == 0: condition = "Target: Not Blind"
+                else: condition = f"Target Status_{status_id} == {val}"
+                i += 7
+            elif (i + 6 < n and
+                  instructions[i][0] == 0xAE and instructions[i][1] == -14 and
+                  instructions[i+1][0] == 0xAE and
+                  instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x700F and
+                  instructions[i+3][0] == 0xAE and
+                  instructions[i+4][0] in [0x0B, 0x06, 0x0F] and
+                  instructions[i+5][0] == 0x2A and
+                  instructions[i+6][0] == 0xD7):
+                param = instructions[i+1][1]
+                val = instructions[i+3][1]
+                op = instructions[i+4][0]
+                if param == 21 and op == 0x0B: condition = f"HP < {val}%"
+                elif param == 22 and op == 0x0B: condition = f"MP < {val}%"
+                elif param == 17 and op == 0x06: condition = f"Turn {val}"
+                elif param == 40 and op == 0x0F and val == 1: condition = "Solo Fiend (Last Standing)"
+                elif param == 41 and op == 0x0F: condition = f"Party Alive <= {val}"
+                else: condition = f"Param_{param} < {val}"
+                i += 7
+                
+            # Action execution pattern
+            if (i + 9 < n and
+                instructions[i][0] == 0xAE and instructions[i][1] == -14 and
+                instructions[i+1][0] == 0xAE and
+                instructions[i+2][0] == 0xAE and
+                instructions[i+3][0] == 0xAE and instructions[i+3][1] == 0 and
+                instructions[i+4][0] == 0xB5 and instructions[i+4][1] == 0x7010 and
+                instructions[i+5][0] == 0xA0 and instructions[i+5][1] == 2 and
+                instructions[i+6][0] == 0x9F and instructions[i+6][1] == 2 and
+                instructions[i+7][0] == 0xAE and instructions[i+7][1] == 16384 and
+                instructions[i+8][0] == 0xD8 and instructions[i+8][1] == 0x700B and
+                instructions[i+9][0] == 0x3C):
+                action_id = instructions[i+1][1]
+                target_val = instructions[i+2][1]
+                target = "Target" if target_val == -16 else "Self"
+                strict_rules.append({
+                    "condition": condition,
+                    "action_id": action_id,
+                    "target": target,
+                    "chance": chance
+                })
+                i += 10
+            else:
+                strict_match = False
                 break
-            arg1 = func_bytecode[cursor]
-            arg2 = func_bytecode[cursor+1]
-            cursor += 2
-            argv = arg1 + arg2 * 0x100
-            argv_signed = argv if argv < 0x8000 else (argv - 0x10000)
-        else:
-            argv_signed = 0
-            
-        instructions.append((opcode, argv_signed, offset))
-        
-    rules = []
-    i = 0
-    n = len(instructions)
+                
+        if strict_match and strict_rules:
+            return strict_rules
+
+    # PASS 2: Universal Multi-Pass Scanner across ALL workers and functions
+    # Extracts all action building / execution calls and their contextual conditions
+    extracted_rules = []
+    seen_actions = set()
+    entry_points = sorted(list(set(addr for w in disasm.workers for addr in w["funcs"])))
     
-    while i < n:
-        if instructions[i][0] == 0x3C: # RET
-            i += 1
-            continue
+    for w_idx, w in enumerate(disasm.workers):
+        for f_idx, s_addr in enumerate(w["funcs"]):
+            ep_idx = entry_points.index(s_addr) if s_addr in entry_points else -1
+            e_addr = entry_points[ep_idx+1] if (ep_idx >= 0 and ep_idx + 1 < len(entry_points)) else len(disasm.bytecode)
+            func_bc = disasm.bytecode[s_addr:e_addr]
+            if not func_bc:
+                continue
+                
+            insts = parse_func_instructions(func_bc)
+            num_insts = len(insts)
             
-        chance = 100
-        condition = "Always"
+            # Scan for BuildAction (0x7010), ExecuteAction (0x700B), or action invocations
+            for j in range(num_insts):
+                op, arg, off = insts[j]
+                
+                # Check for CALL 0x7010 (BuildAction) or CALLPOPA 0x7010
+                if op in [0xB5, 0xD8] and arg == 0x7010:
+                    # Scan backwards for pushed arguments
+                    # Expected args before call: [actor, action_id, target, target_type]
+                    pushes = []
+                    k = j - 1
+                    while k >= 0 and len(pushes) < 6:
+                        if insts[k][0] in [0xAE, 0x80, 0x81, 0x82, 0x83]: # PUSH variants
+                            pushes.insert(0, insts[k][1])
+                        k -= 1
+                        
+                    action_id = 1
+                    target = "Target"
+                    if len(pushes) >= 4:
+                        action_id = pushes[1]
+                        target_val = pushes[2]
+                        target = "Target" if target_val == -16 else ("Self" if target_val == -14 else "Party")
+                    elif len(pushes) >= 2:
+                        action_id = pushes[0]
+                        
+                    # Scan backwards for condition / chance in this function block
+                    cond = "Always"
+                    chance = 100
+                    
+                    for c_idx in range(max(0, j - 20), j):
+                        c_op, c_arg, _ = insts[c_idx]
+                        if c_op == 0xB5 and c_arg == 0x00A9: # RNG check
+                            if c_idx + 3 < j and insts[c_idx+3][0] == 0xAE:
+                                chance = max(1, min(100, insts[c_idx+3][1]))
+                        elif c_op == 0xB5 and c_arg == 0x700F: # GetProperty
+                            if c_idx >= 1 and insts[c_idx-1][1] == 21: # HP %
+                                if c_idx + 1 < j:
+                                    cond = f"HP < {insts[c_idx+1][1]}%"
+                            elif c_idx >= 1 and insts[c_idx-1][1] == 22: # MP %
+                                if c_idx + 1 < j:
+                                    cond = f"MP < {insts[c_idx+1][1]}%"
+                            elif c_idx >= 1 and insts[c_idx-1][1] == 17: # Turn
+                                if c_idx + 1 < j:
+                                    cond = f"Turn {insts[c_idx+1][1]}"
+                        elif c_op == 0xB5 and c_arg == 0x7001: # checkTargetStatus
+                            if c_idx >= 1 and insts[c_idx-1][1] == 33:
+                                cond = "Target: Has Reflect"
+                            elif c_idx >= 1 and insts[c_idx-1][1] == 31:
+                                cond = "Target: Has Protect"
+                            elif c_idx >= 1 and insts[c_idx-1][1] == 32:
+                                cond = "Target: Has Shell"
+                            elif c_idx >= 1 and insts[c_idx-1][1] == 35:
+                                cond = "Target: Has Haste"
+                            elif c_idx >= 1 and insts[c_idx-1][1] == 3:
+                                cond = "Target: Not Poisoned"
+                                
+                    key = (cond, action_id, target, chance)
+                    if key not in seen_actions and action_id >= 0:
+                        seen_actions.add(key)
+                        extracted_rules.append({
+                            "condition": cond,
+                            "action_id": action_id,
+                            "target": target,
+                            "chance": chance
+                        })
+                        
+                # Check for ExecuteAction (0x700B) without 0x7010
+                elif op in [0xB5, 0xD8] and arg == 0x700B:
+                    # Check if action was pushed directly
+                    if j >= 1 and insts[j-1][0] == 0xAE:
+                        act_val = insts[j-1][1]
+                        if act_val > 0 and act_val < 0x7000:
+                            key = ("Always", act_val, "Target", 100)
+                            if key not in seen_actions:
+                                seen_actions.add(key)
+                                extracted_rules.append({
+                                    "condition": "Always",
+                                    "action_id": act_val,
+                                    "target": "Target",
+                                    "chance": 100
+                                })
+
+    if extracted_rules:
+        return extracted_rules
         
-        # 1. Chance check pattern (7 instructions)
-        if (i + 6 < n and
-            instructions[i][0] == 0xB5 and instructions[i][1] == 0x00A9 and
-            instructions[i+1][0] == 0xAE and instructions[i+1][1] == 100 and
-            instructions[i+2][0] == 0x18 and
-            instructions[i+3][0] == 0xAE and
-            instructions[i+4][0] == 0x0B and
-            instructions[i+5][0] == 0x2A and
-            instructions[i+6][0] == 0xD7):
-            
-            chance = instructions[i+3][1]
-            i += 7
-            
-        # 2. Condition check patterns
-        # 2a. Modulo turn condition (9 instructions)
-        if (i + 8 < n and
-            instructions[i][0] == 0xAE and instructions[i][1] == -14 and
-            instructions[i+1][0] == 0xAE and instructions[i+1][1] == 17 and
-            instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x700F and
-            instructions[i+3][0] == 0xAE and
-            instructions[i+4][0] == 0x18 and
-            instructions[i+5][0] == 0xAE and instructions[i+5][1] == 0 and
-            instructions[i+6][0] == 0x06 and
-            instructions[i+7][0] == 0x2A and
-            instructions[i+8][0] == 0xD7):
-            
-            mod_val = instructions[i+3][1]
-            condition = f"Every {mod_val} Turns"
-            i += 9
-
-        # 2b. Target status condition (7 instructions)
-        elif (i + 6 < n and
-              instructions[i][0] == 0xAE and instructions[i][1] == -16 and
-              instructions[i+1][0] == 0xAE and
-              instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x7001 and
-              instructions[i+3][0] == 0xAE and
-              instructions[i+4][0] == 0x06 and
-              instructions[i+5][0] == 0x2A and
-              instructions[i+6][0] == 0xD7):
-              
-            status_id = instructions[i+1][1]
-            val = instructions[i+3][1]
-            if status_id == 33 and val == 1: condition = "Target: Has Reflect"
-            elif status_id == 31 and val == 1: condition = "Target: Has Protect"
-            elif status_id == 32 and val == 1: condition = "Target: Has Shell"
-            elif status_id == 35 and val == 1: condition = "Target: Has Haste"
-            elif status_id == 3 and val == 0: condition = "Target: Not Poisoned"
-            elif status_id == 4 and val == 0: condition = "Target: Not Silenced"
-            elif status_id == 5 and val == 0: condition = "Target: Not Blind"
-            else:
-                condition = f"Target Status_{status_id} == {val}"
-            i += 7
-
-        # 2c. General Property condition (7 instructions)
-        elif (i + 6 < n and
-              instructions[i][0] == 0xAE and instructions[i][1] == -14 and
-              instructions[i+1][0] == 0xAE and
-              instructions[i+2][0] == 0xB5 and instructions[i+2][1] == 0x700F and
-              instructions[i+3][0] == 0xAE and
-              instructions[i+4][0] in [0x0B, 0x06, 0x0F] and
-              instructions[i+5][0] == 0x2A and
-              instructions[i+6][0] == 0xD7):
-            
-            param = instructions[i+1][1]
-            val = instructions[i+3][1]
-            op = instructions[i+4][0]
-            
-            if param == 21 and op == 0x0B:
-                condition = f"HP < {val}%"
-            elif param == 22 and op == 0x0B:
-                condition = f"MP < {val}%"
-            elif param == 17 and op == 0x06:
-                condition = f"Turn {val}"
-            elif param == 40 and op == 0x0F and val == 1:
-                condition = "Solo Fiend (Last Standing)"
-            elif param == 41 and op == 0x0F:
-                condition = f"Party Alive <= {val}"
-            else:
-                condition = f"Param_{param} < {val}"
-            i += 7
-            
-        # 3. Action execution pattern (10 instructions)
-        if (i + 9 < n and
-            instructions[i][0] == 0xAE and instructions[i][1] == -14 and
-            instructions[i+1][0] == 0xAE and
-            instructions[i+2][0] == 0xAE and
-            instructions[i+3][0] == 0xAE and instructions[i+3][1] == 0 and
-            instructions[i+4][0] == 0xB5 and instructions[i+4][1] == 0x7010 and
-            instructions[i+5][0] == 0xA0 and instructions[i+5][1] == 2 and
-            instructions[i+6][0] == 0x9F and instructions[i+6][1] == 2 and
-            instructions[i+7][0] == 0xAE and instructions[i+7][1] == 16384 and
-            instructions[i+8][0] == 0xD8 and instructions[i+8][1] == 0x700B and
-            instructions[i+9][0] == 0x3C):
-            
-            action_id = instructions[i+1][1]
-            target_val = instructions[i+2][1]
-            target = "Target" if target_val == -16 else "Self"
-            
-            rules.append({
-                "condition": condition,
-                "action_id": action_id,
-                "target": target,
-                "chance": chance
-            })
-            i += 10
-        else:
-            return None
-            
-    return rules
+    return None
 

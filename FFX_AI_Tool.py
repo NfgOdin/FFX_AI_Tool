@@ -10,6 +10,7 @@ from collections import OrderedDict
 from ffx_codec import FFXCodec
 from ffx_atel import AtelDisassembler, AtelDecompiler, compile_rules_to_atel, decompile_atel_to_rules, inject_rules, show_dark_confirm
 import ffx_monster_packer as packer
+from ffx_encounters import FFXEncounterParser
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(script_dir, "ffx_ai_tool_recent_files.json")
@@ -236,6 +237,7 @@ class FFXAIToolGUI:
         self.monster_cache = {}
         self.loaded_state = None
         self._handling_select = False
+        self.encounter_parser = FFXEncounterParser()
         
         self.create_widgets()
         self.setup_syntax_highlighting()
@@ -432,6 +434,58 @@ class FFXAIToolGUI:
             combo["values"] = ["None (0x0000)"] + items_choices
             
         self.cmb_ronso["values"] = ["None (0x0000)"] + [f"{name} ({hex(cmd_id)})" for cmd_id, name in self.commands_list]
+
+    def resolve_command_name(self, cmd_id):
+        for cid, name in self.commands_list:
+            if cid == cmd_id:
+                return f"{name} ({hex(cmd_id)})"
+                
+        # Built-in fallback mappings for standard abilities
+        FALLBACK_CMDS = {
+            0x0000: "None / Pass",
+            0x0001: "Attack",
+            0x0010: "Attack (Physical)",
+            0x0014: "Fire",
+            0x0015: "Blizzard",
+            0x0016: "Thunder",
+            0x0017: "Water",
+            0x0018: "Fira",
+            0x0019: "Blizzara",
+            0x001A: "Thundara",
+            0x001B: "Watera",
+            0x001C: "Firaga",
+            0x001D: "Blizzaga",
+            0x001E: "Thundaga",
+            0x001F: "Waterga",
+            0x0020: "Bio",
+            0x0021: "Demi",
+            0x0022: "Death",
+            0x0023: "Drain",
+            0x0024: "Osmose",
+            0x0025: "Flare",
+            0x0026: "Ultima",
+            0x0027: "Cure",
+            0x0028: "Cura",
+            0x0029: "Curaga",
+            0x002A: "Scan",
+            0x002B: "Esuna",
+            0x002C: "Life",
+            0x002D: "Full-Life",
+            0x002E: "Haste",
+            0x002F: "Hastega",
+            0x0030: "Slow",
+            0x0031: "Slowga",
+            0x0032: "Silence",
+            0x0033: "Sleep",
+            0x0034: "Protect",
+            0x0035: "Shell",
+            0x0036: "Reflect",
+            0x0037: "Dispel"
+        }
+        if cmd_id in FALLBACK_CMDS:
+            return f"{FALLBACK_CMDS[cmd_id]} ({hex(cmd_id)})"
+            
+        return f"Action {cmd_id} ({hex(cmd_id)})"
 
     def extract_monster_english_name(self, filepath):
         try:
@@ -1407,20 +1461,14 @@ class FFXAIToolGUI:
             
             # Try to decompile rules from Chunk 0
             loaded_rules = decompile_atel_to_rules(self.chunks[0], worker_idx=1, func_idx=2)
-            if loaded_rules is not None:
+            if loaded_rules:
                 self.tree_rules.delete(*self.tree_rules.get_children())
                 for idx, rule in enumerate(loaded_rules):
                     cond = rule["condition"]
                     action_id = rule["action_id"]
                     target = rule["target"]
                     chance = f"{rule['chance']}%"
-                    
-                    # Resolve action name from action_id
-                    resolved_act = f"Action {action_id} ({hex(action_id)})"
-                    for cmd_id, name in self.commands_list:
-                        if cmd_id == action_id:
-                            resolved_act = f"{name} ({hex(cmd_id)})"
-                            break
+                    resolved_act = self.resolve_command_name(action_id)
                     self.tree_rules.insert("", tk.END, iid=f"rule_{idx}", values=(cond, resolved_act, target, chance))
                 self.log(f"Loaded {len(loaded_rules)} rules from monster AI bytecode.", "info")
             else:
@@ -1428,6 +1476,9 @@ class FFXAIToolGUI:
             
             # Snapshot GUI state
             self.loaded_state = self.get_current_gui_state()
+            
+            # Populate Encounter & Formation view
+            self.populate_encounters_view()
             
             self.log(f"Loaded {m_id} successfully.", "success")
         except Exception as e:
@@ -2594,6 +2645,11 @@ class FFXAIToolGUI:
         self.tab_flowchart = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_flowchart, text=" 📈 Visual AI Flowchart ")
         self.build_flowchart_tab(self.tab_flowchart)
+        
+        # 8. Encounter & Formation Map Tab
+        self.tab_encounters = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.tab_encounters, text=" 🗺️ Encounters & Spawns ")
+        self.build_encounters_tab(self.tab_encounters)
         
         self.notebook.bind("<<NotebookTabChanged>>", self.on_atel_notebook_tab_changed)
         
@@ -3799,12 +3855,193 @@ class FFXAIToolGUI:
         self.log(f"Exported bestiary card for {m_name} to {f}", "success")
         messagebox.showinfo("Success", f"Bestiary card exported successfully to:\n{f}")
 
+    def build_encounters_tab(self, parent):
+        paned = ttk.Panedwindow(parent, orient="horizontal")
+        paned.pack(fill="both", expand=True)
+        
+        # Left Panel: Active Monster Formations & Spawns
+        left_frame = ttk.LabelFrame(paned, text=" 📍 Active Monster Spawns & Battle Formations ", padding=10)
+        paned.add(left_frame, weight=3)
+        
+        self.lbl_enc_active_title = ttk.Label(left_frame, text="No Monster Selected", font=("Segoe UI", 11, "bold"), foreground=self.accent_color)
+        self.lbl_enc_active_title.pack(anchor="w", pady=(0, 2))
+        
+        self.lbl_enc_active_zone = ttk.Label(left_frame, text="Zone: -", font=("Segoe UI", 9, "italic"), foreground=self.text_dim)
+        self.lbl_enc_active_zone.pack(anchor="w", pady=(0, 10))
+        
+        # Scrollable container for active monster formations
+        cvs_active = tk.Canvas(left_frame, borderwidth=0, highlightthickness=0, bg=self.bg_color)
+        sb_active = ttk.Scrollbar(left_frame, orient="vertical", command=cvs_active.yview)
+        self.frame_enc_active = ttk.Frame(cvs_active)
+        
+        self.frame_enc_active.bind("<Configure>", lambda e: cvs_active.configure(scrollregion=cvs_active.bbox("all")))
+        cvs_active.create_window((0, 0), window=self.frame_enc_active, anchor="nw")
+        cvs_active.configure(yscrollcommand=sb_active.set)
+        
+        cvs_active.pack(side="left", fill="both", expand=True)
+        sb_active.pack(side="right", fill="y")
+        
+        def _on_enc_wheel(event):
+            cvs_active.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        self.frame_enc_active.bind("<Enter>", lambda e: cvs_active.bind_all("<MouseWheel>", _on_enc_wheel))
+        self.frame_enc_active.bind("<Leave>", lambda e: cvs_active.unbind_all("<MouseWheel>"))
+        
+        # Right Panel: Spira World Map Encounter Explorer
+        right_frame = ttk.LabelFrame(paned, text=" 🌍 Spira World Encounter Explorer ", padding=10)
+        paned.add(right_frame, weight=4)
+        
+        top_bar = ttk.Frame(right_frame)
+        top_bar.pack(fill="x", pady=(0, 8))
+        
+        ttk.Label(top_bar, text="Region:").pack(side="left", padx=(0, 5))
+        self.cmb_enc_world_zone = ttk.Combobox(top_bar, values=["All Zones"] + self.encounter_parser.get_all_zones(), state="readonly", width=20)
+        self.cmb_enc_world_zone.set("All Zones")
+        self.cmb_enc_world_zone.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.cmb_enc_world_zone.bind("<<ComboboxSelected>>", self.refresh_world_encounters)
+        
+        ttk.Label(top_bar, text="🔍 Search:").pack(side="left", padx=(0, 5))
+        self.ent_enc_world_search = ttk.Entry(top_bar, width=14)
+        self.ent_enc_world_search.pack(side="left")
+        self.ent_enc_world_search.bind("<KeyRelease>", self.refresh_world_encounters)
+        
+        # Treeview for World Encounters
+        tree_f = ttk.Frame(right_frame)
+        tree_f.pack(fill="both", expand=True)
+        
+        self.tree_world_enc = ttk.Treeview(tree_f, columns=("SubArea", "Formation", "Rate", "Ambush"), show="headings", selectmode="browse")
+        self.tree_world_enc.heading("SubArea", text="Sub-Area")
+        self.tree_world_enc.heading("Formation", text="Formation Party")
+        self.tree_world_enc.heading("Rate", text="Spawn Rate")
+        self.tree_world_enc.heading("Ambush", text="Ambush")
+        
+        self.tree_world_enc.column("SubArea", width=130, anchor="w")
+        self.tree_world_enc.column("Formation", width=220, anchor="w")
+        self.tree_world_enc.column("Rate", width=75, anchor="center")
+        self.tree_world_enc.column("Ambush", width=70, anchor="center")
+        
+        self.tree_world_enc.pack(fill="both", expand=True, side="left")
+        sb_world = ttk.Scrollbar(tree_f, command=self.tree_world_enc.yview)
+        sb_world.pack(fill="y", side="right")
+        self.tree_world_enc.config(yscrollcommand=sb_world.set)
+        
+        # Bottom Action Bar
+        btn_bar = ttk.Frame(right_frame)
+        btn_bar.pack(fill="x", pady=(8, 0))
+        
+        btn_load_sel = tk.Button(btn_bar, text="🔍 Load First Monster in Formation", command=self.on_load_formation_monster, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
+        btn_load_sel.pack(side="right")
+        self.bind_hover(btn_load_sel, is_primary=True)
+        
+        self.refresh_world_encounters()
+
+    def populate_encounters_view(self):
+        if not hasattr(self, "frame_enc_active"):
+            return
+            
+        for widget in self.frame_enc_active.winfo_children():
+            widget.destroy()
+            
+        if not self.current_monster:
+            self.lbl_enc_active_title.config(text="No Monster Selected")
+            self.lbl_enc_active_zone.config(text="Zone: -")
+            return
+            
+        m_id = self.current_monster["id"]
+        m_name = self.current_monster["name"]
+        m_zone = MONSTER_ZONE_MAP.get(m_id, "Spira Field")
+        
+        self.lbl_enc_active_title.config(text=f"📍 {m_name} ({m_id})")
+        self.lbl_enc_active_zone.config(text=f"Primary Zone: {m_zone}")
+        
+        encounters = self.encounter_parser.get_monster_encounters(m_id)
+        if not encounters:
+            lbl = tk.Label(self.frame_enc_active, text="No specific random encounter table mapped for this monster.\n(May be a story boss, event cutscene battle, or special trigger).", bg=self.bg_color, fg=self.text_dim, font=("Segoe UI", 9, "italic"), justify="left")
+            lbl.pack(anchor="w", padx=5, pady=10)
+            return
+            
+        for enc in encounters:
+            card = tk.LabelFrame(self.frame_enc_active, text=f" {enc['zone']} — {enc['sub_area']} ", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"), padx=10, pady=8)
+            card.pack(fill="x", expand=True, pady=(0, 10))
+            
+            form = enc["formation"]
+            rate_txt = f"Spawn Rate: {form.get('rate', 'Normal')}  |  Ambush Rate: {form.get('ambush', '0%')}"
+            tk.Label(card, text=rate_txt, bg=self.bg_color, fg=self.text_dim, font=("Segoe UI", 8, "italic")).pack(anchor="w", pady=(0, 6))
+            
+            p_frame = tk.Frame(card, bg=self.bg_color)
+            p_frame.pack(fill="x")
+            
+            for m_entry in form["monsters"]:
+                comp_id, comp_name = m_entry
+                is_current = (comp_id == m_id)
+                btn_bg = self.accent_color if is_current else self.card_color
+                btn_fg = "#ffffff" if is_current else self.text_color
+                
+                b = tk.Button(
+                    p_frame,
+                    text=f"👾 {comp_name} ({comp_id})" + (" [Active]" if is_current else ""),
+                    command=lambda mid=comp_id: self.select_and_load_monster(mid),
+                    bg=btn_bg, fg=btn_fg, font=("Segoe UI", 8, "bold" if is_current else "normal"),
+                    relief="flat", padx=6, pady=2
+                )
+                b.pack(side="left", padx=(0, 5), pady=2)
+                if not is_current:
+                    self.bind_hover(b)
+
+    def refresh_world_encounters(self, event=None):
+        if not hasattr(self, "tree_world_enc"):
+            return
+            
+        self.tree_world_enc.delete(*self.tree_world_enc.get_children())
+        zone = self.cmb_enc_world_zone.get()
+        query = self.ent_enc_world_search.get().strip().lower()
+        
+        all_zones = self.encounter_parser.get_zone_formations(zone)
+        
+        for area_entry in all_zones:
+            sub_area = area_entry["sub_area"]
+            for form in area_entry["formations"]:
+                m_names = [f"{m[1]} ({m[0]})" for m in form["monsters"]]
+                form_str = " + ".join(m_names)
+                rate = form.get("rate", "Normal")
+                ambush = form.get("ambush", "0%")
+                
+                # Check filter
+                if query and (query not in sub_area.lower() and query not in form_str.lower() and query not in area_entry["zone"].lower()):
+                    continue
+                    
+                first_m_id = form["monsters"][0][0] if form["monsters"] else ""
+                self.tree_world_enc.insert(
+                    "", tk.END,
+                    values=(sub_area, form_str, rate, ambush),
+                    tags=(first_m_id,)
+                )
+
+    def on_load_formation_monster(self):
+        sel = self.tree_world_enc.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Please select a formation row first.")
+            return
+        tags = self.tree_world_enc.item(sel[0], "tags")
+        if tags and tags[0]:
+            self.select_and_load_monster(tags[0])
+
+    def select_and_load_monster(self, monster_id):
+        m = next((x for x in self.monsters_list if x["id"] == monster_id), None)
+        if not m:
+            messagebox.showinfo("Info", f"Monster {monster_id} is not currently present in the scanned directory.")
+            return
+        self.tree_monsters.selection_set(monster_id)
+        self.tree_monsters.see(monster_id)
+        self.load_monster_file(monster_id)
+
     def on_atel_notebook_tab_changed(self, event=None):
         try:
             tab_idx = self.notebook.index("current")
             tab_text = self.notebook.tab(tab_idx, "text")
             if "Flowchart" in tab_text:
                 self.draw_flowchart()
+            elif "Encounters" in tab_text:
+                self.populate_encounters_view()
         except Exception:
             pass
 
