@@ -8,13 +8,19 @@ from tkinter import ttk, filedialog, messagebox
 from collections import OrderedDict
 
 from ffx_codec import FFXCodec
-from ffx_atel import AtelDisassembler, AtelDecompiler, compile_rules_to_atel, decompile_atel_to_rules, inject_rules, show_dark_confirm
+from ffx_atel import (
+    AtelDisassembler, AtelDecompiler, compile_rules_to_atel, compile_rules_to_bytecode,
+    decompile_atel_to_rules, inject_rules, show_dark_confirm,
+    parse_chunk1_ai_map, enable_chunk1_hook_slot,
+    AI_EVENT_HOOK_DEFS, CONDITION_PRESETS, TARGET_PRESETS, AI_RULE_TEMPLATES
+)
 import ffx_monster_packer as packer
 from ffx_encounters import FFXEncounterParser
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(script_dir, "ffx_ai_tool_recent_files.json")
 ELEMENT_STATES = ["Normal", "Weak", "Resist", "Immune", "Absorb"]
+from ffx_ability_db import FFX_MASTER_ABILITIES
 
 ZONE_CATEGORIES = [
     "All Zones",
@@ -78,20 +84,29 @@ MONSTER_ZONE_MAP = {
     "m079": "Inside Sin & Omega Ruins", "m080": "Inside Sin & Omega Ruins", "m081": "Inside Sin & Omega Ruins",
     "m082": "Inside Sin & Omega Ruins", "m083": "Inside Sin & Omega Ruins", "m084": "Inside Sin & Omega Ruins",
     "m085": "Inside Sin & Omega Ruins", "m086": "Inside Sin & Omega Ruins", "m087": "Inside Sin & Omega Ruins",
-    # Arena Creations
-    "m334": "Monster Arena", "m335": "Monster Arena", "m336": "Monster Arena", "m337": "Monster Arena",
-    "m338": "Monster Arena", "m339": "Monster Arena", "m340": "Monster Arena", "m341": "Monster Arena",
-    "m342": "Monster Arena", "m343": "Monster Arena", "m344": "Monster Arena", "m345": "Monster Arena",
-    "m346": "Monster Arena", "m276": "Monster Arena",
-    # Dark Aeons & Superbosses
-    "m280": "Dark Aeons & Superbosses", "m109": "Dark Aeons & Superbosses",
-    "m281": "Dark Aeons & Superbosses", "m282": "Dark Aeons & Superbosses",
-    "m283": "Dark Aeons & Superbosses", "m284": "Dark Aeons & Superbosses",
-    "m285": "Dark Aeons & Superbosses", "m286": "Dark Aeons & Superbosses",
-    "m287": "Dark Aeons & Superbosses", "m288": "Dark Aeons & Superbosses",
-    "m289": "Dark Aeons & Superbosses", "m290": "Dark Aeons & Superbosses",
-    "m291": "Dark Aeons & Superbosses", "m292": "Dark Aeons & Superbosses",
-    "m099": "Dark Aeons & Superbosses", "m100": "Dark Aeons & Superbosses",
+    "m099": "Inside Sin & Omega Ruins", "m100": "Inside Sin & Omega Ruins",
+    # Monster Arena Creations & Originals
+    "m276": "Monster Arena", "m277": "Monster Arena", "m279": "Monster Arena",
+    "m280": "Monster Arena", "m281": "Monster Arena", "m282": "Monster Arena", "m283": "Monster Arena",
+    "m292": "Monster Arena", "m293": "Monster Arena", "m294": "Monster Arena", "m295": "Monster Arena",
+    "m296": "Monster Arena", "m297": "Monster Arena", "m298": "Monster Arena", "m299": "Monster Arena",
+    "m300": "Monster Arena", "m301": "Monster Arena", "m302": "Monster Arena", "m303": "Monster Arena",
+    "m304": "Monster Arena", "m305": "Monster Arena", "m306": "Monster Arena", "m307": "Monster Arena",
+    "m308": "Monster Arena", "m309": "Monster Arena", "m310": "Monster Arena", "m311": "Monster Arena",
+    "m312": "Monster Arena", "m313": "Monster Arena", "m314": "Monster Arena", "m315": "Monster Arena",
+    "m316": "Monster Arena", "m317": "Monster Arena", "m318": "Monster Arena",
+    # Belgemine Aeons & Magus Sisters (Remiem Temple)
+    "m284": "Story Bosses", "m285": "Story Bosses", "m286": "Story Bosses",
+    "m287": "Story Bosses", "m288": "Story Bosses", "m289": "Story Bosses",
+    "m290": "Story Bosses", "m291": "Story Bosses",
+    # Dark Aeons & Penance Superbosses
+    "m334": "Dark Aeons & Superbosses", "m335": "Dark Aeons & Superbosses",
+    "m336": "Dark Aeons & Superbosses", "m337": "Dark Aeons & Superbosses",
+    "m338": "Dark Aeons & Superbosses", "m339": "Dark Aeons & Superbosses",
+    "m340": "Dark Aeons & Superbosses", "m341": "Dark Aeons & Superbosses",
+    "m342": "Dark Aeons & Superbosses", "m343": "Dark Aeons & Superbosses",
+    "m344": "Dark Aeons & Superbosses", "m345": "Dark Aeons & Superbosses",
+    "m346": "Dark Aeons & Superbosses",
     # Story Bosses
     "m153": "Story Bosses", "m102": "Story Bosses", "m103": "Story Bosses", "m110": "Story Bosses",
     "m156": "Story Bosses", "m104": "Story Bosses", "m117": "Story Bosses", "m160": "Story Bosses",
@@ -105,6 +120,9 @@ MONSTER_ZONE_MAP = {
     "m131": "Story Bosses", "m132": "Story Bosses", "m173": "Story Bosses", "m174": "Story Bosses",
     "m176": "Story Bosses"
 }
+
+APP_VERSION = "1.2.0"
+VERSION = "1.2.0"
 
 class FFXAIToolGUI:
     def __init__(self, parent, is_embedded=False):
@@ -126,7 +144,7 @@ class FFXAIToolGUI:
         self.active_color = "#2563eb"
         
         if not is_embedded:
-            self.root.title("FFX Monster AI & Stats Editor")
+            self.root.title(f"FFX Monster AI & Stats Editor — v{APP_VERSION}")
             self.root.geometry("1100x700")
             self.root.minsize(950, 600)
             self.root.configure(bg=self.bg_color)
@@ -236,6 +254,9 @@ class FFXAIToolGUI:
         self.item_name_map = {}
         self.items_list = []
         self.commands_list = []
+        self.command_map = {}
+        self.monmagic1_map = {}
+        self.monmagic2_map = {}
         
         # Load Configuration
         self.config = self.load_config()
@@ -247,6 +268,7 @@ class FFXAIToolGUI:
         self.encounter_parser = FFXEncounterParser()
         
         self.create_widgets()
+        self.load_item_and_command_mappings()
         self.setup_syntax_highlighting()
         self.setup_shortcuts()
         
@@ -385,7 +407,7 @@ class FFXAIToolGUI:
         self.items_list.clear()
         self.commands_list.clear()
         
-        # Load items
+        # 1. Load items
         item_bin_path = os.path.join(self.master_path, loc, "battle", "kernel", "item.bin")
         if os.path.exists(item_bin_path):
             try:
@@ -397,19 +419,58 @@ class FFXAIToolGUI:
             except Exception as e:
                 self.log(f"Failed to load items: {e}", "error")
                 
-        # Load commands
-        cmd_bin_path = os.path.join(self.master_path, loc, "battle", "kernel", "command.bin")
-        if os.path.exists(cmd_bin_path):
+        # Helper to find kernel file in subdirectories
+        def find_kernel_bin(filename):
+            for sub in [loc, "new_uspc", "uspc", "new_jppc", "jppc"]:
+                p = os.path.join(self.master_path, sub, "battle", "kernel", filename)
+                if os.path.exists(p):
+                    return p
+            return None
+
+        # 2. Load commands (command.bin) -> 0x0000 base & 0x3000 base
+        cmd_path = find_kernel_bin("command.bin")
+        if cmd_path:
             try:
-                records, _, _, _ = self.codec.read_ffx_text_bin(cmd_bin_path, 92, "us")
+                records, _, _, _ = self.codec.read_ffx_text_bin(cmd_path, 92, "us")
                 for r in records:
-                    cmd_id = r["id"]
-                    self.item_name_map[cmd_id] = r["name"]
-                    self.commands_list.append((cmd_id, r["name"]))
+                    if r["name"].strip():
+                        cmd_id = r["id"]
+                        self.command_map[cmd_id] = r["name"].strip()
+                        self.item_name_map[cmd_id] = r["name"].strip()
+                        self.commands_list.append((cmd_id, r["name"].strip()))
+                        
+                        m_id = 0x3000 + cmd_id
+                        self.item_name_map[m_id] = r["name"].strip()
+                        self.commands_list.append((m_id, r["name"].strip()))
             except Exception as e:
                 self.log(f"Failed to load commands: {e}", "error")
+
+        # 3. Load monster magic 1 (monmagic1.bin)
+        mm1_path = find_kernel_bin("monmagic1.bin")
+        if mm1_path:
+            try:
+                records, _, _, _ = self.codec.read_ffx_text_bin(mm1_path, 92, "us")
+                for r in records:
+                    if r["name"].strip():
+                        self.monmagic1_map[r["id"]] = r["name"].strip()
+            except Exception:
+                pass
+
+        # 4. Load monster magic 2 (monmagic2.bin) -> 0x4000 base
+        mm2_path = find_kernel_bin("monmagic2.bin")
+        if mm2_path:
+            try:
+                records, _, _, _ = self.codec.read_ffx_text_bin(mm2_path, 92, "us")
+                for r in records:
+                    if r["name"].strip():
+                        self.monmagic2_map[r["id"]] = r["name"].strip()
+                        m_id = 0x4000 + r["id"]
+                        self.item_name_map[m_id] = r["name"].strip()
+                        self.commands_list.append((m_id, r["name"].strip()))
+            except Exception:
+                pass
                 
-        # Fallbacks
+        # Fallbacks for items
         if not self.items_list:
             fallbacks = [
                 (0x2000, "Potion"), (0x2001, "Hi-Potion"), (0x2002, "X-Potion"), (0x2003, "Mega-Potion"),
@@ -421,14 +482,15 @@ class FFXAIToolGUI:
                 self.item_name_map[item_id] = name
                 self.items_list.append((item_id, name))
                 
-        if not self.commands_list:
-            fallbacks = [
-                (0x0000, "Attack"), (0x0016, "Steal"), (0x0017, "Use"), (0x002D, "Delay Attack"),
-                (0x0031, "Flee")
-            ]
-            for cmd_id, name in fallbacks:
+        # Merge comprehensive Master Abilities
+        for cmd_id, name in FFX_MASTER_ABILITIES.items():
+            if cmd_id not in self.item_name_map:
                 self.item_name_map[cmd_id] = name
+            if not any(c[0] == cmd_id for c in self.commands_list):
                 self.commands_list.append((cmd_id, name))
+                
+        # Sort commands list logically by ID
+        self.commands_list.sort(key=lambda x: x[0])
                 
         # Update combo dropdowns
         item_combos = [
@@ -441,56 +503,61 @@ class FFXAIToolGUI:
             combo["values"] = ["None (0x0000)"] + items_choices
             
         self.cmb_ronso["values"] = ["None (0x0000)"] + [f"{name} ({hex(cmd_id)})" for cmd_id, name in self.commands_list]
+        self.update_rule_builder_actions()
 
     def resolve_command_name(self, cmd_id):
+        if cmd_id in [0, 4]:
+            return "Attack (0x0)"
+        if cmd_id in [0x6004, 0x6005, 0x6006, 0x6007]:
+            flags = {0x6004: "Magic Counter", 0x6005: "Standby / Wait", 0x6006: "Defend", 0x6007: "Charge Energy"}
+            return f"{flags[cmd_id]} ({hex(cmd_id)})"
+
+        m_id = self.current_monster["id"] if self.current_monster else "m001"
+        m_name = self.current_monster["name"].lower() if self.current_monster else ""
+        m_num_str = m_id.replace("_m", "").replace("m", "")
+        m_num = int(m_num_str) if m_num_str.isdigit() else 1
+        
+        is_boss_or_aeon = any(k in m_name for k in ["boss", "dark", "seymour", "jecht", "penance", "sin", "nemesis", "anima", "yojimbo", "weapon", "sister", "cindy", "sandy", "mindy", "valefor", "ifrit", "ixion", "shiva", "bahamut"]) or m_num >= 270 or (101 <= m_num <= 176)
+
+        # 1. 0x3000 base
+        if 0x3000 <= cmd_id <= 0x3FFF:
+            sub = cmd_id - 0x3000
+            if sub in self.command_map and 0x30 <= sub <= 0x60:
+                return f"{self.command_map[sub]} ({hex(cmd_id)})"
+            if not is_boss_or_aeon and sub in self.monmagic1_map and not self.monmagic1_map[sub].startswith("Command "):
+                return f"{self.monmagic1_map[sub]} ({hex(cmd_id)})"
+            if sub in self.command_map:
+                return f"{self.command_map[sub]} ({hex(cmd_id)})"
+            if sub in self.monmagic1_map:
+                return f"{self.monmagic1_map[sub]} ({hex(cmd_id)})"
+
+        # 2. 0x4000 base
+        if 0x4000 <= cmd_id <= 0x4FFF:
+            sub = cmd_id - 0x4000
+            if is_boss_or_aeon:
+                if sub in self.monmagic2_map and not self.monmagic2_map[sub].startswith("Command "):
+                    return f"{self.monmagic2_map[sub]} ({hex(cmd_id)})"
+                if sub in self.monmagic1_map and not self.monmagic1_map[sub].startswith("Command "):
+                    return f"{self.monmagic1_map[sub]} ({hex(cmd_id)})"
+            else:
+                if sub in self.monmagic1_map and not self.monmagic1_map[sub].startswith("Command "):
+                    return f"{self.monmagic1_map[sub]} ({hex(cmd_id)})"
+                if sub in self.monmagic2_map and not self.monmagic2_map[sub].startswith("Command "):
+                    return f"{self.monmagic2_map[sub]} ({hex(cmd_id)})"
+            if sub in self.command_map:
+                return f"{self.command_map[sub]} ({hex(cmd_id)})"
+
+        # 3. Direct match in loaded maps
+        if cmd_id in self.item_name_map:
+            return f"{self.item_name_map[cmd_id]} ({hex(cmd_id)})"
+            
         for cid, name in self.commands_list:
             if cid == cmd_id:
                 return f"{name} ({hex(cmd_id)})"
                 
-        # Built-in fallback mappings for standard abilities
-        FALLBACK_CMDS = {
-            0x0000: "None / Pass",
-            0x0001: "Attack",
-            0x0010: "Attack (Physical)",
-            0x0014: "Fire",
-            0x0015: "Blizzard",
-            0x0016: "Thunder",
-            0x0017: "Water",
-            0x0018: "Fira",
-            0x0019: "Blizzara",
-            0x001A: "Thundara",
-            0x001B: "Watera",
-            0x001C: "Firaga",
-            0x001D: "Blizzaga",
-            0x001E: "Thundaga",
-            0x001F: "Waterga",
-            0x0020: "Bio",
-            0x0021: "Demi",
-            0x0022: "Death",
-            0x0023: "Drain",
-            0x0024: "Osmose",
-            0x0025: "Flare",
-            0x0026: "Ultima",
-            0x0027: "Cure",
-            0x0028: "Cura",
-            0x0029: "Curaga",
-            0x002A: "Scan",
-            0x002B: "Esuna",
-            0x002C: "Life",
-            0x002D: "Full-Life",
-            0x002E: "Haste",
-            0x002F: "Hastega",
-            0x0030: "Slow",
-            0x0031: "Slowga",
-            0x0032: "Silence",
-            0x0033: "Sleep",
-            0x0034: "Protect",
-            0x0035: "Shell",
-            0x0036: "Reflect",
-            0x0037: "Dispel"
-        }
-        if cmd_id in FALLBACK_CMDS:
-            return f"{FALLBACK_CMDS[cmd_id]} ({hex(cmd_id)})"
+        # 4. Match in Master Abilities Dictionary
+        if cmd_id in FFX_MASTER_ABILITIES:
+            return f"{FFX_MASTER_ABILITIES[cmd_id]} ({hex(cmd_id)})"
             
         return f"Action {cmd_id} ({hex(cmd_id)})"
 
@@ -1466,20 +1533,8 @@ class FFXAIToolGUI:
             self.disassemble_ai_script()
             self.update_rule_builder_actions()
             
-            # Try to decompile rules from Chunk 0
-            loaded_rules = decompile_atel_to_rules(self.chunks[0], worker_idx=1, func_idx=2)
-            if loaded_rules:
-                self.tree_rules.delete(*self.tree_rules.get_children())
-                for idx, rule in enumerate(loaded_rules):
-                    cond = rule["condition"]
-                    action_id = rule["action_id"]
-                    target = rule["target"]
-                    chance = f"{rule['chance']}%"
-                    resolved_act = self.resolve_command_name(action_id)
-                    self.tree_rules.insert("", tk.END, iid=f"rule_{idx}", values=(cond, resolved_act, target, chance))
-                self.log(f"Loaded {len(loaded_rules)} rules from monster AI bytecode.", "info")
-            else:
-                self.on_apply_ai_template()
+            # Decompile multi-hook rules from Chunk 0 + Chunk 1
+            self.load_ai_rules_from_chunks()
             
             # Snapshot GUI state
             self.loaded_state = self.get_current_gui_state()
@@ -1626,184 +1681,773 @@ class FFXAIToolGUI:
             messagebox.showerror("Error", f"Failed to apply constants:\n{str(e)}")
 
     def build_rule_builder_tab(self, parent):
-        # Top Preset Selection Frame
+        self.ai_map_info = None
+        self.current_hook_key = "turn"
+        self.rules_by_hook = {k: [] for _, k, _, _ in AI_EVENT_HOOK_DEFS}
+        self.modified_hooks = set()
+        self.rule_data_map = {}
+        self.extra_conditions_list = []
+
+        # Row 1: AI Worker Info Badge & Preset Template Toolbar
         top_frame = ttk.Frame(parent)
-        top_frame.pack(fill="x", pady=(0, 10))
-        
-        ttk.Label(top_frame, text="Load AI Preset Template:").pack(side="left", padx=5)
-        self.cmb_ai_preset = ttk.Combobox(top_frame, values=[
+        top_frame.pack(fill="x", pady=(0, 6))
+
+        self.lbl_ai_worker_info = tk.Label(
+            top_frame,
+            text="🤖 AI Worker: Not Loaded",
+            bg=self.card_color,
+            fg=self.accent_color,
+            font=("Segoe UI", 9, "bold"),
+            padx=8,
+            pady=3
+        )
+        self.lbl_ai_worker_info.pack(side="left", padx=(0, 8))
+
+        ttk.Label(top_frame, text="Preset:").pack(side="left", padx=(4, 4))
+        preset_names = list(AI_RULE_TEMPLATES.keys()) + [
             "Standard Attacker (Dingo)",
             "Flying Attacker (Condor)",
             "Spellcaster (Water Flan)",
             "Healer/Support (White Element)"
-        ], state="readonly", width=30)
-        self.cmb_ai_preset.set("Standard Attacker (Dingo)")
-        self.cmb_ai_preset.pack(side="left", padx=5)
-        
-        btn_load_preset = tk.Button(top_frame, text="Load Preset", command=self.on_apply_ai_template, bg=self.accent_color, fg="#ffffff", relief="flat", padx=10)
-        btn_load_preset.pack(side="left", padx=5)
-        self.bind_hover(btn_load_preset)
-        
+        ]
+        self.cmb_ai_preset = ttk.Combobox(top_frame, values=preset_names, state="readonly", width=36)
+        self.cmb_ai_preset.set(preset_names[0])
+        self.cmb_ai_preset.pack(side="left", padx=4)
+
+        btn_load_preset = tk.Button(
+            top_frame, text="📥 Load Preset", command=self.on_apply_ai_template,
+            bg=self.accent_color, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", padx=8, pady=2
+        )
+        btn_load_preset.pack(side="left", padx=3)
+        self.bind_hover(btn_load_preset, is_primary=True)
+
+        btn_reload_ai = tk.Button(
+            top_frame, text="🔄 Reload From Script", command=self.load_ai_rules_from_chunks,
+            bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9), relief="flat", padx=8, pady=2
+        )
+        btn_reload_ai.pack(side="left", padx=3)
+        self.bind_hover(btn_reload_ai)
+
+        self.btn_enable_hook = tk.Button(
+            top_frame, text="➕ Enable Unmapped Hook", command=self.on_enable_current_hook_slot,
+            bg=self.btn_color_secondary, fg="#ffffff", font=("Segoe UI", 8, "bold"), relief="flat", padx=8, pady=2
+        )
+        self.btn_enable_hook.pack(side="right", padx=3)
+        self.bind_hover(self.btn_enable_hook)
+
+        # Row 2: Event Hook Selector Bar
+        hook_bar = tk.Frame(parent, bg=self.bg_color)
+        hook_bar.pack(fill="x", pady=(0, 8))
+
+        self.hook_buttons = {}
+        short_labels = {
+            "turn": "⚡ Active Turn",
+            "react": "🛡 Counter / React",
+            "damage": "💥 On Damage",
+            "death": "💀 On Death",
+            "pre_turn": "⏳ Pre-Turn",
+            "start": "🎬 Battle Start",
+            "targeted": "🎯 On Targeted",
+            "post_turn": "📐 Post-Turn",
+            "tick": "⏱ Status Tick",
+        }
+        for slot_idx, hook_key, full_label, desc in AI_EVENT_HOOK_DEFS:
+            lbl_txt = short_labels.get(hook_key, full_label)
+            b = tk.Button(
+                hook_bar,
+                text=lbl_txt,
+                command=lambda hk=hook_key: self.on_select_ai_hook(hk),
+                bg=self.card_color,
+                fg=self.text_color,
+                font=("Segoe UI", 8, "bold"),
+                relief="flat",
+                padx=7,
+                pady=3
+            )
+            b.pack(side="left", padx=(0, 4))
+            self.hook_buttons[hook_key] = b
+
         # Horizontal Split Panel
         paned = ttk.Panedwindow(parent, orient="horizontal")
         paned.pack(fill="both", expand=True)
-        
-        # Left Panel: Rules List
+
+        # Left Panel: Rules List + Live Pseudocode Preview + Compile Buttons
         left_frame = ttk.Frame(paned)
         paned.add(left_frame, weight=3)
-        
+
         tree_frame = ttk.Frame(left_frame)
         tree_frame.pack(fill="both", expand=True)
-        
-        self.tree_rules = ttk.Treeview(tree_frame, columns=("condition", "action", "target", "chance"), show="headings", selectmode="browse")
-        self.tree_rules.heading("condition", text="Condition")
-        self.tree_rules.heading("action", text="Action")
+
+        cols = ("phase", "condition", "action", "target", "chance", "state_flow")
+        self.tree_rules = ttk.Treeview(tree_frame, columns=cols, show="headings", selectmode="browse")
+        self.tree_rules.heading("phase", text="Phase Gate")
+        self.tree_rules.heading("condition", text="Trigger Condition(s)")
+        self.tree_rules.heading("action", text="Action / Ability")
         self.tree_rules.heading("target", text="Target")
         self.tree_rules.heading("chance", text="Chance")
-        self.tree_rules.column("condition", width=120, anchor="w")
-        self.tree_rules.column("action", width=120, anchor="w")
-        self.tree_rules.column("target", width=80, anchor="center")
-        self.tree_rules.column("chance", width=60, anchor="center")
+        self.tree_rules.heading("state_flow", text="State & Flow")
+
+        self.tree_rules.column("phase", width=85, anchor="center")
+        self.tree_rules.column("condition", width=165, anchor="w")
+        self.tree_rules.column("action", width=140, anchor="w")
+        self.tree_rules.column("target", width=110, anchor="center")
+        self.tree_rules.column("chance", width=55, anchor="center")
+        self.tree_rules.column("state_flow", width=125, anchor="w")
         self.tree_rules.pack(fill="both", expand=True, side="left")
-        
+
         scroll_rules_y = ttk.Scrollbar(tree_frame, command=self.tree_rules.yview)
         scroll_rules_y.pack(fill="y", side="right")
         self.tree_rules.config(yscrollcommand=scroll_rules_y.set)
-        
-        # Bottom Compile Button
-        btn_compile = tk.Button(left_frame, text="⚙️ Compile & Apply AI Script", command=self.on_compile_rule_based_ai, bg=self.success_color, fg="#ffffff", font=("Segoe UI", 10, "bold"), relief="flat", height=2)
-        btn_compile.pack(fill="x", pady=10)
+
+        # Live Hook Pseudocode Preview
+        preview_frame = ttk.LabelFrame(left_frame, text=" 📜 Live Hook Pseudocode Preview ", padding=4)
+        preview_frame.pack(fill="x", pady=(6, 4))
+        self.txt_rule_preview = tk.Text(
+            preview_frame, bg="#0d0d0d", fg="#a7f3d0", font=("Consolas", 9),
+            height=5, wrap="none", relief="flat"
+        )
+        self.txt_rule_preview.pack(fill="x", expand=True, side="left")
+        prev_scroll = ttk.Scrollbar(preview_frame, command=self.txt_rule_preview.yview)
+        prev_scroll.pack(fill="y", side="right")
+        self.txt_rule_preview.config(yscrollcommand=prev_scroll.set)
+
+        # Bottom Compile Buttons
+        compile_bar = ttk.Frame(left_frame)
+        compile_bar.pack(fill="x", pady=(4, 0))
+
+        btn_compile = tk.Button(
+            compile_bar,
+            text="⚙ Compile Active Hook to AI Script",
+            command=lambda: self.on_compile_rule_based_ai(compile_all_modified=False),
+            bg=self.success_color, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", pady=5
+        )
+        btn_compile.pack(side="left", fill="x", expand=True, padx=(0, 4))
         self.bind_hover_color(btn_compile, "#059669", self.success_color)
-        
+
+        btn_compile_all = tk.Button(
+            compile_bar,
+            text="⚡ Compile All Modified Hooks",
+            command=lambda: self.on_compile_rule_based_ai(compile_all_modified=True),
+            bg=self.accent_color, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", pady=5
+        )
+        btn_compile_all.pack(side="left", fill="x", expand=True, padx=(4, 0))
+        self.bind_hover(btn_compile_all, is_primary=True)
+
         # Right Panel: Rule Editor Form
-        right_frame = ttk.LabelFrame(paned, text=" Edit Selected Rule ", padding=10)
+        right_frame = ttk.LabelFrame(paned, text=" 🔧 Rule Inspector & Logic Builder ", padding=8)
         paned.add(right_frame, weight=2)
-        
-        # Form inputs
-        ttk.Label(right_frame, text="Condition:").grid(row=0, column=0, sticky="w", pady=5)
-        self.cmb_rule_cond = ttk.Combobox(right_frame, values=[
-            "Always",
-            "HP < 50%",
-            "HP < 25%",
-            "MP < 50%",
-            "MP < 25%",
-            "Turn 1",
-            "Turn 2",
-            "Turn 3",
-            "Every 2 Turns",
-            "Every 3 Turns",
-            "Target: Has Reflect",
-            "Target: Has Protect",
-            "Target: Has Shell",
-            "Target: Has Haste",
-            "Target: Not Poisoned",
-            "Target: Not Silenced",
-            "Target: Not Blind",
-            "Solo Fiend (Last Standing)",
-            "Party Alive <= 1",
-            "Party Alive <= 2"
-        ], state="readonly", width=25)
+
+        var_choices = ["Any"] + [f"var_{i:02X}" for i in range(32)]
+        var_only_choices = [f"var_{i:02X}" for i in range(32)]
+
+        # 1. Phase / State Gate
+        ttk.Label(right_frame, text="Phase Gate:").grid(row=0, column=0, sticky="w", pady=3)
+        phase_f = ttk.Frame(right_frame)
+        phase_f.grid(row=0, column=1, sticky="ew", pady=3, padx=4)
+
+        self.cmb_phase_var = ttk.Combobox(phase_f, values=var_choices, state="readonly", width=9)
+        self.cmb_phase_var.set("Any")
+        self.cmb_phase_var.pack(side="left")
+
+        self.cmb_phase_op = ttk.Combobox(phase_f, values=["==", "!=", "<", "<=", ">", ">="], state="readonly", width=4)
+        self.cmb_phase_op.set("==")
+        self.cmb_phase_op.pack(side="left", padx=3)
+
+        self.var_phase_val = tk.StringVar(value="0")
+        tk.Spinbox(
+            phase_f, from_=-999, to=9999, textvariable=self.var_phase_val, width=6,
+            bg=self.card_color, fg=self.text_color, insertbackground=self.text_color
+        ).pack(side="left")
+
+        # 2. Primary Condition
+        ttk.Label(right_frame, text="Condition:").grid(row=1, column=0, sticky="w", pady=3)
+        self.cmb_rule_cond = ttk.Combobox(right_frame, values=CONDITION_PRESETS, width=26)
         self.cmb_rule_cond.set("Always")
-        self.cmb_rule_cond.grid(row=0, column=1, sticky="ew", pady=5, padx=5)
-        
-        ttk.Label(right_frame, text="Action:").grid(row=1, column=0, sticky="w", pady=5)
-        self.cmb_rule_action = ttk.Combobox(right_frame, state="readonly", width=25)
-        self.cmb_rule_action.grid(row=1, column=1, sticky="ew", pady=5, padx=5)
-        
-        ttk.Label(right_frame, text="Target:").grid(row=2, column=0, sticky="w", pady=5)
-        self.cmb_rule_target = ttk.Combobox(right_frame, values=["Target", "Self"], state="readonly", width=25)
+        self.cmb_rule_cond.grid(row=1, column=1, sticky="ew", pady=3, padx=4)
+
+        # 3. Extra Composite Conditions (AND / OR)
+        ttk.Label(right_frame, text="Composite:").grid(row=2, column=0, sticky="w", pady=3)
+        comp_f = ttk.Frame(right_frame)
+        comp_f.grid(row=2, column=1, sticky="ew", pady=3, padx=4)
+
+        self.cmb_logic_op = ttk.Combobox(comp_f, values=["AND", "OR"], state="readonly", width=5)
+        self.cmb_logic_op.set("AND")
+        self.cmb_logic_op.pack(side="left")
+
+        self.var_extra_conds = tk.StringVar(value="")
+        self.ent_extra_conds = ttk.Entry(comp_f, textvariable=self.var_extra_conds, width=14)
+        self.ent_extra_conds.pack(side="left", fill="x", expand=True, padx=3)
+
+        btn_add_extra = tk.Button(
+            comp_f, text="+Cond", command=self.on_append_extra_condition,
+            bg=self.card_color, fg=self.text_color, font=("Segoe UI", 8), relief="flat", padx=4
+        )
+        btn_add_extra.pack(side="left", padx=1)
+        self.bind_hover(btn_add_extra)
+
+        btn_clr_extra = tk.Button(
+            comp_f, text="Clr", command=lambda: self.var_extra_conds.set(""),
+            bg=self.card_color, fg=self.text_dim, font=("Segoe UI", 8), relief="flat", padx=4
+        )
+        btn_clr_extra.pack(side="left", padx=1)
+        self.bind_hover(btn_clr_extra)
+
+        # 4. Action Search & Selection
+        ttk.Label(right_frame, text="Find Action:").grid(row=3, column=0, sticky="w", pady=3)
+        act_search_f = ttk.Frame(right_frame)
+        act_search_f.grid(row=3, column=1, sticky="ew", pady=3, padx=4)
+
+        self.var_action_filter = tk.StringVar(value="")
+        ent_act_filter = ttk.Entry(act_search_f, textvariable=self.var_action_filter, width=16)
+        ent_act_filter.pack(side="left", fill="x", expand=True)
+        ent_act_filter.bind("<KeyRelease>", self.on_filter_rule_actions)
+
+        self.var_is_counter_op = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            act_search_f, text="Counter (0x705A)", variable=self.var_is_counter_op,
+            bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color,
+            activebackground=self.bg_color, activeforeground=self.text_color, font=("Segoe UI", 8)
+        ).pack(side="right", padx=(4, 0))
+
+        ttk.Label(right_frame, text="Action:").grid(row=4, column=0, sticky="w", pady=3)
+        self.cmb_rule_action = ttk.Combobox(right_frame, width=26)
+        self.cmb_rule_action.grid(row=4, column=1, sticky="ew", pady=3, padx=4)
+
+        # 5. Target Selection
+        ttk.Label(right_frame, text="Target:").grid(row=5, column=0, sticky="w", pady=3)
+        self.cmb_rule_target = ttk.Combobox(right_frame, values=TARGET_PRESETS, state="readonly", width=26)
         self.cmb_rule_target.set("Target")
-        self.cmb_rule_target.grid(row=2, column=1, sticky="ew", pady=5, padx=5)
-        
-        ttk.Label(right_frame, text="Chance (%):").grid(row=3, column=0, sticky="w", pady=5)
+        self.cmb_rule_target.grid(row=5, column=1, sticky="ew", pady=3, padx=4)
+
+        # 6. Chance (%)
+        ttk.Label(right_frame, text="Chance (%):").grid(row=6, column=0, sticky="w", pady=3)
         self.var_rule_chance = tk.StringVar(value="100")
-        tk.Spinbox(right_frame, from_=0, to=100, textvariable=self.var_rule_chance, width=23, bg=self.card_color, fg=self.text_color).grid(row=3, column=1, sticky="ew", pady=5, padx=5)
-        
+        tk.Spinbox(
+            right_frame, from_=1, to=100, textvariable=self.var_rule_chance, width=24,
+            bg=self.card_color, fg=self.text_color, insertbackground=self.text_color
+        ).grid(row=6, column=1, sticky="ew", pady=3, padx=4)
+
+        # 7. State / Variable Update
+        ttk.Label(right_frame, text="State Update:").grid(row=7, column=0, sticky="w", pady=3)
+        var_f = ttk.Frame(right_frame)
+        var_f.grid(row=7, column=1, sticky="ew", pady=3, padx=4)
+
+        self.cmb_var_op = ttk.Combobox(var_f, values=["None", "Set", "Add", "Reset"], state="readonly", width=6)
+        self.cmb_var_op.set("None")
+        self.cmb_var_op.pack(side="left")
+
+        self.cmb_var_idx = ttk.Combobox(var_f, values=var_only_choices, state="readonly", width=8)
+        self.cmb_var_idx.set("var_00")
+        self.cmb_var_idx.pack(side="left", padx=3)
+
+        self.var_mut_val = tk.StringVar(value="1")
+        tk.Spinbox(
+            var_f, from_=-999, to=9999, textvariable=self.var_mut_val, width=6,
+            bg=self.card_color, fg=self.text_color, insertbackground=self.text_color
+        ).pack(side="left")
+
+        # 8. Turn Control Flow
+        ttk.Label(right_frame, text="Turn Flow:").grid(row=8, column=0, sticky="w", pady=3)
+        self.cmb_rule_flow = ttk.Combobox(
+            right_frame,
+            values=["Return (End Turn)", "Continue (Multi-Action / Combo)"],
+            state="readonly", width=26
+        )
+        self.cmb_rule_flow.set("Return (End Turn)")
+        self.cmb_rule_flow.grid(row=8, column=1, sticky="ew", pady=3, padx=4)
+
         right_frame.columnconfigure(1, weight=1)
-        
+
         # Command Buttons inside Right Frame
         btn_cmd_frame = ttk.Frame(right_frame)
-        btn_cmd_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=15)
-        
-        btn_update = tk.Button(btn_cmd_frame, text="Update Rule", command=self.on_update_rule_item, bg=self.accent_color, fg="#ffffff", relief="flat")
-        btn_update.pack(fill="x", pady=2)
-        self.bind_hover(btn_update)
-        
-        btn_add = tk.Button(btn_cmd_frame, text="Add Rule", command=self.on_add_rule_item, bg=self.btn_color_secondary, fg="#ffffff", relief="flat")
-        btn_add.pack(fill="x", pady=2)
+        btn_cmd_frame.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 2))
+
+        row_crud1 = ttk.Frame(btn_cmd_frame)
+        row_crud1.pack(fill="x", pady=2)
+
+        btn_update = tk.Button(
+            row_crud1, text="💾 Update Rule", command=self.on_update_rule_item,
+            bg=self.accent_color, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", pady=3
+        )
+        btn_update.pack(side="left", fill="x", expand=True, padx=(0, 2))
+        self.bind_hover(btn_update, is_primary=True)
+
+        btn_add = tk.Button(
+            row_crud1, text="➕ Add Rule", command=self.on_add_rule_item,
+            bg=self.btn_color_secondary, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", pady=3
+        )
+        btn_add.pack(side="left", fill="x", expand=True, padx=(2, 0))
         self.bind_hover(btn_add)
-        
-        btn_delete = tk.Button(btn_cmd_frame, text="Delete Rule", command=self.on_delete_rule_item, bg=self.error_color, fg="#ffffff", relief="flat")
-        btn_delete.pack(fill="x", pady=2)
+
+        row_crud2 = ttk.Frame(btn_cmd_frame)
+        row_crud2.pack(fill="x", pady=2)
+
+        btn_dup = tk.Button(
+            row_crud2, text="📋 Duplicate", command=self.on_duplicate_rule_item,
+            bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9), relief="flat", pady=3
+        )
+        btn_dup.pack(side="left", fill="x", expand=True, padx=(0, 2))
+        self.bind_hover(btn_dup)
+
+        btn_delete = tk.Button(
+            row_crud2, text="🗑 Delete Rule", command=self.on_delete_rule_item,
+            bg=self.error_color, fg="#ffffff", font=("Segoe UI", 9), relief="flat", pady=3
+        )
+        btn_delete.pack(side="left", fill="x", expand=True, padx=(2, 0))
         self.bind_hover_color(btn_delete, "#dc2626", self.error_color)
-        
+
         # Reorder Buttons
         reorder_frame = ttk.Frame(btn_cmd_frame)
-        reorder_frame.pack(fill="x", pady=10)
-        
-        btn_up = tk.Button(reorder_frame, text="▲ Move Up", command=self.on_move_rule_up, bg=self.card_color, fg=self.text_color, relief="flat", width=11)
-        btn_up.pack(side="left", expand=True, padx=2)
+        reorder_frame.pack(fill="x", pady=(6, 0))
+
+        btn_up = tk.Button(
+            reorder_frame, text="▲ Move Up", command=self.on_move_rule_up,
+            bg=self.card_color, fg=self.text_color, relief="flat", width=11, pady=2
+        )
+        btn_up.pack(side="left", expand=True, fill="x", padx=(0, 2))
         self.bind_hover(btn_up)
-        
-        btn_down = tk.Button(reorder_frame, text="▼ Move Down", command=self.on_move_rule_down, bg=self.card_color, fg=self.text_color, relief="flat", width=11)
-        btn_down.pack(side="left", expand=True, padx=2)
+
+        btn_down = tk.Button(
+            reorder_frame, text="▼ Move Down", command=self.on_move_rule_down,
+            bg=self.card_color, fg=self.text_color, relief="flat", width=11, pady=2
+        )
+        btn_down.pack(side="left", expand=True, fill="x", padx=(2, 0))
         self.bind_hover(btn_down)
-        
+
         self.tree_rules.bind("<<TreeviewSelect>>", lambda e: self.on_rule_item_selected())
 
     def update_rule_builder_actions(self):
         if not hasattr(self, "cmb_rule_action"):
             return
         vals = [f"{name} ({hex(cmd_id)})" for cmd_id, name in self.commands_list]
+        self._all_action_choices = vals
         self.cmb_rule_action["values"] = vals
-        if vals:
+        if vals and not self.cmb_rule_action.get():
             self.cmb_rule_action.set(vals[0])
+
+    def on_filter_rule_actions(self, event=None):
+        if not hasattr(self, "_all_action_choices"):
+            self.update_rule_builder_actions()
+        query = self.var_action_filter.get().strip().lower()
+        if not query:
+            filtered = self._all_action_choices
+        else:
+            filtered = [v for v in self._all_action_choices if query in v.lower()]
+        self.cmb_rule_action["values"] = filtered if filtered else self._all_action_choices
+        if filtered:
+            self.cmb_rule_action.set(filtered[0])
+
+    def on_append_extra_condition(self):
+        cond = self.cmb_rule_cond.get().strip()
+        if not cond or cond == "Always":
+            return
+        curr = self.var_extra_conds.get().strip()
+        parts = [p.strip() for p in curr.split(";") if p.strip()] if curr else []
+        if cond not in parts:
+            parts.append(cond)
+        self.var_extra_conds.set("; ".join(parts))
+
+    def _get_hook_func_map(self, ai_map=None):
+        m = ai_map if ai_map is not None else self.ai_map_info
+        if not m:
+            return {}
+        hooks = m.get("hooks", {})
+        if isinstance(hooks, dict):
+            return {k: (v if v is not None else 0xFFFF) for k, v in hooks.items()}
+        out = {}
+        for h in hooks:
+            fk = h.get("func_idx")
+            out[h["key"]] = fk if fk is not None else 0xFFFF
+        return out
+
+    def load_ai_rules_from_chunks(self):
+        if not self.chunks or len(self.chunks) < 2:
+            return
+        try:
+            self.ai_map_info = parse_chunk1_ai_map(self.chunks[1], self.chunks[0])
+            self.rules_by_hook = decompile_atel_to_rules(self.chunks[0], self.chunks[1], return_all_hooks=True)
+            self.modified_hooks = set()
+
+            # Keep current_hook_key if valid, or default to turn
+            if self.current_hook_key not in self.rules_by_hook:
+                self.current_hook_key = "turn"
+
+            self.refresh_hook_selector_bar()
+            self.populate_rules_tree_for_current_hook()
+
+            total_rules = sum(len(v) for v in self.rules_by_hook.values())
+            active_hooks = [k for k, v in self.rules_by_hook.items() if v]
+            self.log(
+                f"Decompiled {total_rules} AI rules across {len(active_hooks)} event hooks "
+                f"(AI Worker w{self.ai_map_info['ai_worker_idx']}, {self.ai_map_info['var_count']} local vars).",
+                "info"
+            )
+        except Exception as e:
+            self.log(f"Error decompiling multi-hook AI rules: {e}", "error")
+
+    def refresh_hook_selector_bar(self):
+        if not hasattr(self, "hook_buttons"):
+            return
+        short_labels = {
+            "turn": "⚡ Turn",
+            "react": "🛡 Counter",
+            "damage": "💥 Damage",
+            "death": "💀 Death",
+            "pre_turn": "⏳ Pre-Turn",
+            "start": "🎬 Init",
+            "targeted": "🎯 Targeted",
+            "post_turn": "📐 Post-Turn",
+            "tick": "⏱ Tick",
+        }
+        hooks_map = self._get_hook_func_map()
+        ai_w = self.ai_map_info.get("ai_worker_idx", 0) if self.ai_map_info else 0
+        var_cnt = self.ai_map_info.get("var_count", 0) if self.ai_map_info else 0
+
+        for hook_key, btn in self.hook_buttons.items():
+            cnt = len(self.rules_by_hook.get(hook_key, []))
+            func_idx = hooks_map.get(hook_key, 0xFFFF)
+            base_lbl = short_labels.get(hook_key, hook_key)
+            badge = f" ({cnt})" if cnt > 0 else ""
+            if hook_key in getattr(self, "modified_hooks", set()):
+                badge += "*"
+            btn.config(text=f"{base_lbl}{badge}")
+
+            if hook_key == self.current_hook_key:
+                btn.config(bg=self.accent_color, fg="#ffffff")
+            elif func_idx != 0xFFFF and cnt > 0:
+                btn.config(bg=self.card_color, fg=self.success_color)
+            elif func_idx != 0xFFFF:
+                btn.config(bg=self.card_color, fg=self.text_color)
+            else:
+                btn.config(bg=self.bg_color, fg=self.text_dim)
+
+        cur_func = hooks_map.get(self.current_hook_key, 0xFFFF)
+        func_str = f"w{ai_w}_f{cur_func}" if cur_func != 0xFFFF else "Unmapped (0xFFFF)"
+        self.lbl_ai_worker_info.config(
+            text=f"🤖 Worker w{ai_w} (Role 2) | {var_cnt} Vars | Hook: {self.current_hook_key} -> {func_str}"
+        )
+        if hasattr(self, "btn_enable_hook"):
+            if cur_func == 0xFFFF:
+                self.btn_enable_hook.config(state="normal", bg=self.accent_color, text="➕ Enable Unmapped Hook")
+            else:
+                self.btn_enable_hook.config(state="normal", bg=self.btn_color_secondary, text=f"✔ Hook Mapped ({func_str})")
+
+    def on_select_ai_hook(self, hook_key):
+        # Save current tree order into rules_by_hook before switching
+        self._sync_tree_to_current_hook_rules()
+        self.current_hook_key = hook_key
+        if hasattr(self, "var_is_counter_op"):
+            self.var_is_counter_op.set(hook_key == "react")
+        self.refresh_hook_selector_bar()
+        self.populate_rules_tree_for_current_hook()
+        if hasattr(self, "cvs_flowchart"):
+            try:
+                self.draw_flowchart()
+            except Exception:
+                pass
+
+    def on_enable_current_hook_slot(self):
+        if not self.chunks or len(self.chunks) < 2:
+            return
+        slot_idx = 0
+        for s_idx, hk, _, _ in AI_EVENT_HOOK_DEFS:
+            if hk == self.current_hook_key:
+                slot_idx = s_idx
+                break
+        try:
+            new_c0, new_c1, ai_w, f_idx = enable_chunk1_hook_slot(self.chunks[0], self.chunks[1], slot_idx)
+            self.chunks[0] = new_c0
+            self.chunks[1] = new_c1
+            if self.current_monster:
+                m_id = self.current_monster["id"]
+                self.monster_cache[m_id]["chunks"][0] = new_c0
+                self.monster_cache[m_id]["chunks"][1] = new_c1
+                self.monster_cache[m_id]["is_dirty"] = True
+                self.update_monster_tree_name(m_id, self.current_monster["name"], True)
+            self.ai_map_info = parse_chunk1_ai_map(self.chunks[1], self.chunks[0])
+            self.refresh_hook_selector_bar()
+            self.disassemble_ai_script()
+            self.log(f"Enabled Hook '{self.current_hook_key}' (Slot {slot_idx}) -> w{ai_w}_f{f_idx}.", "success")
+        except Exception as e:
+            self.log(f"Failed to enable hook slot: {e}", "error")
+            messagebox.showerror("Error", f"Failed to enable hook slot:\n{e}")
+
+    def _format_rule_row_values(self, rule):
+        # 1. Phase gate display
+        p_var = rule.get("phase_var", "Any")
+        if p_var and p_var != "Any":
+            phase_str = f"{p_var} {rule.get('phase_op', '==')} {rule.get('phase_val', 0)}"
+        else:
+            phase_str = "Any"
+
+        # 2. Condition display
+        cond = rule.get("condition", "Always")
+        extra = [c for c in rule.get("extra_conditions", []) if c and c != "Always"]
+        logic_op = rule.get("logic_op", "AND")
+        if extra:
+            cond_str = f"{cond} {logic_op} " + f" {logic_op} ".join(extra)
+        else:
+            cond_str = cond
+
+        # 3. Action display
+        action_id = rule.get("action_id", 4)
+        resolved_act = self.resolve_command_name(action_id)
+        if rule.get("is_counter_op", False):
+            resolved_act = f"[Counter] {resolved_act}"
+
+        # 4. Target & Chance
+        target_str = rule.get("target", "Target")
+        chance_str = f"{rule.get('chance', 100)}%"
+
+        # 5. State & Flow
+        v_op = rule.get("var_op", "None")
+        v_idx = rule.get("var_idx", "var_00")
+        v_val = rule.get("var_val", 1)
+        flow = rule.get("flow", "Return")
+        state_parts = []
+        if v_op == "Set":
+            state_parts.append(f"{v_idx}={v_val}")
+        elif v_op == "Add":
+            state_parts.append(f"{v_idx}+={v_val}")
+        elif v_op == "Reset":
+            state_parts.append(f"{v_idx}=0")
+        state_parts.append("Continue ⏩" if str(flow).startswith("Continue") else "Return")
+        state_flow_str = " | ".join(state_parts)
+
+        return (phase_str, cond_str, resolved_act, target_str, chance_str, state_flow_str)
+
+    def populate_rules_tree_for_current_hook(self):
+        self.tree_rules.delete(*self.tree_rules.get_children())
+        self.rule_data_map.clear()
+        rules = self.rules_by_hook.get(self.current_hook_key, [])
+        for idx, rule in enumerate(rules):
+            r_copy = dict(rule)
+            r_copy.setdefault("hook", self.current_hook_key)
+            r_copy.setdefault("phase_var", "Any")
+            r_copy.setdefault("phase_op", "==")
+            r_copy.setdefault("phase_val", 0)
+            r_copy.setdefault("condition", "Always")
+            r_copy.setdefault("extra_conditions", [])
+            r_copy.setdefault("logic_op", "AND")
+            r_copy.setdefault("action_id", 4)
+            r_copy.setdefault("target", "Target")
+            r_copy.setdefault("chance", 100)
+            r_copy.setdefault("var_op", "None")
+            r_copy.setdefault("var_idx", "var_00")
+            r_copy.setdefault("var_val", 1)
+            r_copy.setdefault("flow", "Return")
+            r_copy.setdefault("is_counter_op", self.current_hook_key == "counter")
+
+            iid = f"rule_{idx}"
+            self.rule_data_map[iid] = r_copy
+            self.tree_rules.insert("", tk.END, iid=iid, values=self._format_rule_row_values(r_copy))
+
+        self.update_live_rule_preview()
+
+    def _sync_tree_to_current_hook_rules(self):
+        if not hasattr(self, "tree_rules"):
+            return
+        ordered = []
+        for iid in self.tree_rules.get_children():
+            if iid in self.rule_data_map:
+                ordered.append(dict(self.rule_data_map[iid]))
+        self.rules_by_hook[self.current_hook_key] = ordered
+
+    def _build_rule_dict_from_form(self):
+        p_var = self.cmb_phase_var.get().strip() or "Any"
+        p_op = self.cmb_phase_op.get().strip() or "=="
+        try:
+            p_val = int(self.var_phase_val.get().strip())
+        except ValueError:
+            p_val = 0
+
+        cond = self.cmb_rule_cond.get().strip() or "Always"
+        extra_raw = self.var_extra_conds.get().strip()
+        extra_list = [p.strip() for p in extra_raw.split(";") if p.strip()] if extra_raw else []
+        logic_op = self.cmb_logic_op.get().strip() or "AND"
+
+        act_name = self.cmb_rule_action.get().strip()
+        clean_act = act_name.replace("[Counter] ", "").strip()
+        action_id = 4
+        start_hex = clean_act.rfind("(0x")
+        if start_hex != -1:
+            end_hex = clean_act.find(")", start_hex)
+            if end_hex != -1:
+                try:
+                    action_id = int(clean_act[start_hex + 3:end_hex], 16)
+                except ValueError:
+                    action_id = 4
+        elif clean_act.lower().startswith("0x"):
+            try:
+                action_id = int(clean_act, 16)
+            except ValueError:
+                action_id = 4
+        else:
+            for cmd_id, name in self.commands_list:
+                if name.lower() == clean_act.lower() or clean_act.lower().startswith(name.lower()):
+                    action_id = cmd_id
+                    break
+
+        target = self.cmb_rule_target.get().strip() or "Target"
+        try:
+            chance = max(1, min(100, int(self.var_rule_chance.get().replace("%", "").strip())))
+        except ValueError:
+            chance = 100
+
+        var_op = self.cmb_var_op.get().strip() or "None"
+        var_idx = self.cmb_var_idx.get().strip() or "var_00"
+        try:
+            var_val = int(self.var_mut_val.get().strip())
+        except ValueError:
+            var_val = 1
+
+        flow_raw = self.cmb_rule_flow.get().strip()
+        flow = "Continue" if flow_raw.startswith("Continue") else "Return"
+        is_counter_op = bool(self.var_is_counter_op.get())
+
+        hooks_map = self._get_hook_func_map()
+        func_idx = hooks_map.get(self.current_hook_key, 2)
+
+        return {
+            "hook": self.current_hook_key,
+            "func_idx": func_idx,
+            "phase_var": p_var,
+            "phase_op": p_op,
+            "phase_val": p_val,
+            "condition": cond,
+            "extra_conditions": extra_list,
+            "logic_op": logic_op,
+            "action_id": action_id,
+            "target": target,
+            "chance": chance,
+            "var_op": var_op,
+            "var_idx": var_idx,
+            "var_name": var_idx,
+            "var_val": var_val,
+            "flow": flow,
+            "is_counter_op": is_counter_op,
+            "is_counter_exec": is_counter_op,
+        }
+
+    def update_live_rule_preview(self):
+        if not hasattr(self, "txt_rule_preview"):
+            return
+        self._sync_tree_to_current_hook_rules()
+        rules = self.rules_by_hook.get(self.current_hook_key, [])
+        self.txt_rule_preview.delete("1.0", tk.END)
+        if not rules:
+            self.txt_rule_preview.insert(tk.END, f"// No rules in hook '{self.current_hook_key}' (returns immediately).\nreturn")
+            return
+
+        lines = [f"// Hook: {self.current_hook_key} ({len(rules)} rules)"]
+        for idx, r in enumerate(rules):
+            conds = []
+            if r.get("phase_var", "Any") not in ("Any", "", None):
+                conds.append(f"{r['phase_var']} {r.get('phase_op', '==')} {r.get('phase_val', 0)}")
+            c_main = r.get("condition", "Always")
+            if c_main != "Always":
+                extras = [x for x in r.get("extra_conditions", []) if x and x != "Always"]
+                if extras:
+                    lop = r.get("logic_op", "AND").lower()
+                    conds.append("(" + f" {lop} ".join([c_main] + extras) + ")")
+                else:
+                    conds.append(c_main)
+            if r.get("chance", 100) < 100:
+                conds.append(f"Random(100) < {r['chance']}%")
+
+            act_str = self.resolve_command_name(r.get("action_id", 4))
+            fn_name = "ExecuteCounterAction" if r.get("is_counter_op") or r.get("is_counter_exec") else "ExecuteAction"
+            tgt_str = r.get("target", "Target")
+
+            body_Parts = [f"{fn_name}({tgt_str}, {act_str})"]
+            v_op = r.get("var_op", "None")
+            v_idx = r.get("var_idx") or r.get("var_name") or "var_00"
+            v_val = r.get("var_val", 1)
+            if v_op == "Set":
+                body_Parts.append(f"{v_idx} = {v_val}")
+            elif v_op == "Add":
+                body_Parts.append(f"{v_idx} += {v_val}")
+            elif v_op == "Reset":
+                body_Parts.append(f"{v_idx} = 0")
+
+            if str(r.get("flow", "Return")).startswith("Return"):
+                body_Parts.append("return")
+
+            if conds:
+                lines.append(f"if {' and '.join(conds)}:")
+                for bp in body_Parts:
+                    lines.append(f"    {bp}")
+            else:
+                for bp in body_Parts:
+                    lines.append(bp)
+        self.txt_rule_preview.insert(tk.END, "\n".join(lines))
 
     def on_apply_ai_template(self):
         preset = self.cmb_ai_preset.get()
-        self.tree_rules.delete(*self.tree_rules.get_children())
-        
-        preset_rules = []
-        if preset == "Standard Attacker (Dingo)":
-            preset_rules = [
-                ("Always", "Attack", "Target", "100%")
-            ]
-        elif preset == "Flying Attacker (Condor)":
-            preset_rules = [
-                ("Always", "Attack", "Target", "100%")
-            ]
-        elif preset == "Spellcaster (Water Flan)":
-            preset_rules = [
-                ("Always", "Water", "Target", "100%")
-            ]
-        elif preset == "Healer/Support (White Element)":
-            preset_rules = [
-                ("HP < 50%", "Cure", "Self", "100%"),
-                ("Always", "Attack", "Target", "100%")
-            ]
-            
-        for idx, (cond, act, target, chance) in enumerate(preset_rules):
-            resolved_act = act
-            for cmd_id, name in self.commands_list:
-                if name.lower() == act.lower():
-                    resolved_act = f"{name} ({hex(cmd_id)})"
-                    break
-            self.tree_rules.insert("", tk.END, iid=f"rule_{idx}", values=(cond, resolved_act, target, chance))
-            
-        self.log(f"Loaded preset '{preset}' rules into rule builder list.", "info")
+        if preset in AI_RULE_TEMPLATES:
+            tmpl = AI_RULE_TEMPLATES[preset]
+            if isinstance(tmpl, dict):
+                for hk, h_rules in tmpl.items():
+                    self.rules_by_hook[hk] = [dict(r) for r in h_rules]
+                    if h_rules:
+                        self.modified_hooks.add(hk)
+            elif isinstance(tmpl, list):
+                target_hk = "react" if "Counter" in preset else self.current_hook_key
+                self.rules_by_hook[target_hk] = [dict(r) for r in tmpl]
+                self.modified_hooks.add(target_hk)
+                self.current_hook_key = target_hk
+        else:
+            # Classic presets
+            classic_rules = []
+            if preset in ("Standard Attacker (Dingo)", "Flying Attacker (Condor)"):
+                classic_rules = [{"condition": "Always", "action_id": 16384, "target": "Random Alive Party Member", "chance": 100}]
+            elif preset == "Spellcaster (Water Flan)":
+                classic_rules = [{"condition": "Always", "action_id": 0x3057, "target": "Random Alive Party Member", "chance": 100}]
+            elif preset == "Healer/Support (White Element)":
+                classic_rules = [
+                    {"condition": "Self HP < 50%", "action_id": 0x304E, "target": "Self", "chance": 100},
+                    {"condition": "Always", "action_id": 0x3054, "target": "Random Alive Party Member", "chance": 100},
+                ]
+            self.rules_by_hook[self.current_hook_key] = classic_rules
+            self.modified_hooks.add(self.current_hook_key)
+
+        self.refresh_hook_selector_bar()
+        self.populate_rules_tree_for_current_hook()
+        self.log(f"Loaded AI template '{preset}' into Visual Rule Builder.", "info")
 
     def on_rule_item_selected(self):
         sel = self.tree_rules.selection()
         if not sel:
             return
         item_id = sel[0]
-        values = self.tree_rules.item(item_id, "values")
-        if values:
-            cond, act, target, chance = values
-            self.cmb_rule_cond.set(cond)
-            self.cmb_rule_action.set(act)
-            self.cmb_rule_target.set(target)
-            self.var_rule_chance.set(chance.replace("%", ""))
+        rule = self.rule_data_map.get(item_id)
+        if not rule:
+            return
+
+        p_var = rule.get("phase_var") or "Any"
+        self.cmb_phase_var.set(p_var)
+        self.cmb_phase_op.set(rule.get("phase_op", "=="))
+        self.var_phase_val.set(str(rule.get("phase_val", 0)))
+
+        self.cmb_rule_cond.set(rule.get("condition", "Always"))
+        self.cmb_logic_op.set(rule.get("logic_op", "AND"))
+        self.var_extra_conds.set("; ".join(rule.get("extra_conditions", [])))
+
+        resolved_act = self.resolve_command_name(rule.get("action_id", 4))
+        self.cmb_rule_action.set(resolved_act)
+        self.var_is_counter_op.set(bool(rule.get("is_counter_op", rule.get("is_counter_exec", False))))
+
+        self.cmb_rule_target.set(rule.get("target", "Random Alive Party Member"))
+        self.var_rule_chance.set(str(rule.get("chance", 100)))
+
+        self.cmb_var_op.set(rule.get("var_op", "None"))
+        self.cmb_var_idx.set(rule.get("var_idx") or rule.get("var_name") or "var_00")
+        self.var_mut_val.set(str(rule.get("var_val", 1)))
+
+        flow = rule.get("flow", "Return")
+        self.cmb_rule_flow.set(
+            "Continue (Multi-Action / Combo)" if str(flow).startswith("Continue") else "Return (End Turn)"
+        )
 
     def on_update_rule_item(self):
         sel = self.tree_rules.selection()
@@ -1811,30 +2455,53 @@ class FFXAIToolGUI:
             messagebox.showwarning("Warning", "No rule selected to update.")
             return
         item_id = sel[0]
-        cond = self.cmb_rule_cond.get()
-        act = self.cmb_rule_action.get()
-        target = self.cmb_rule_target.get()
-        chance = self.var_rule_chance.get().strip() + "%"
-        
-        self.tree_rules.item(item_id, values=(cond, act, target, chance))
+        new_rule = self._build_rule_dict_from_form()
+        self.rule_data_map[item_id] = new_rule
+        self.tree_rules.item(item_id, values=self._format_rule_row_values(new_rule))
+        self.modified_hooks.add(self.current_hook_key)
+        self.refresh_hook_selector_bar()
+        self.update_live_rule_preview()
 
     def on_add_rule_item(self):
-        cond = self.cmb_rule_cond.get()
-        act = self.cmb_rule_action.get()
-        target = self.cmb_rule_target.get()
-        chance = self.var_rule_chance.get().strip() + "%"
-        
         import uuid
+        new_rule = self._build_rule_dict_from_form()
         item_id = f"rule_{uuid.uuid4().hex[:8]}"
-        self.tree_rules.insert("", tk.END, iid=item_id, values=(cond, act, target, chance))
+        self.rule_data_map[item_id] = new_rule
+        self.tree_rules.insert("", tk.END, iid=item_id, values=self._format_rule_row_values(new_rule))
         self.tree_rules.selection_set(item_id)
+        self.modified_hooks.add(self.current_hook_key)
+        self.refresh_hook_selector_bar()
+        self.update_live_rule_preview()
+
+    def on_duplicate_rule_item(self):
+        sel = self.tree_rules.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "No rule selected to duplicate.")
+            return
+        import uuid
+        src_id = sel[0]
+        src_rule = dict(self.rule_data_map.get(src_id, self._build_rule_dict_from_form()))
+        src_rule["extra_conditions"] = list(src_rule.get("extra_conditions", []))
+        item_id = f"rule_{uuid.uuid4().hex[:8]}"
+        self.rule_data_map[item_id] = src_rule
+        idx = self.tree_rules.index(src_id)
+        self.tree_rules.insert("", idx + 1, iid=item_id, values=self._format_rule_row_values(src_rule))
+        self.tree_rules.selection_set(item_id)
+        self.modified_hooks.add(self.current_hook_key)
+        self.refresh_hook_selector_bar()
+        self.update_live_rule_preview()
 
     def on_delete_rule_item(self):
         sel = self.tree_rules.selection()
         if not sel:
             messagebox.showwarning("Warning", "No rule selected to delete.")
             return
-        self.tree_rules.delete(sel[0])
+        item_id = sel[0]
+        self.tree_rules.delete(item_id)
+        self.rule_data_map.pop(item_id, None)
+        self.modified_hooks.add(self.current_hook_key)
+        self.refresh_hook_selector_bar()
+        self.update_live_rule_preview()
 
     def on_move_rule_up(self):
         sel = self.tree_rules.selection()
@@ -1844,6 +2511,8 @@ class FFXAIToolGUI:
         idx = self.tree_rules.index(node)
         if idx > 0:
             self.tree_rules.move(node, "", idx - 1)
+            self.modified_hooks.add(self.current_hook_key)
+            self.update_live_rule_preview()
 
     def on_move_rule_down(self):
         sel = self.tree_rules.selection()
@@ -1852,79 +2521,81 @@ class FFXAIToolGUI:
         node = sel[0]
         idx = self.tree_rules.index(node)
         self.tree_rules.move(node, "", idx + 1)
+        self.modified_hooks.add(self.current_hook_key)
+        self.update_live_rule_preview()
 
-    def on_compile_rule_based_ai(self):
+    def on_compile_rule_based_ai(self, compile_all_modified=False):
         if not self.current_monster:
             messagebox.showwarning("Warning", "No monster selected.")
             return
-            
-        rules = []
-        for item_id in self.tree_rules.get_children():
-            values = self.tree_rules.item(item_id, "values")
-            cond, act_name, target, chance_str = values
-            
-            action_id = 4
-            # First attempt: parse hex inside parentheses, e.g. "Attack (0x0)" or "Action 16 (0x10)"
-            start_hex = act_name.rfind("(0x")
-            if start_hex != -1:
-                end_hex = act_name.find(")", start_hex)
-                if end_hex != -1:
-                    try:
-                        action_id = int(act_name[start_hex+3:end_hex], 16)
-                    except ValueError:
-                        action_id = 4
-            else:
-                for cmd_id, name in self.commands_list:
-                    if name == act_name or act_name.startswith(name):
-                        action_id = cmd_id
-                        break
-                    
-            chance = 100
-            try:
-                chance = int(chance_str.replace("%", "").strip())
-            except ValueError:
-                pass
-                
-            rules.append({
-                "condition": cond,
-                "action_id": action_id,
-                "target": target,
-                "chance": chance
-            })
-            
-        if not rules:
-            messagebox.showwarning("Warning", "No rules to compile.")
+
+        self._sync_tree_to_current_hook_rules()
+
+        if compile_all_modified:
+            target_hooks = list(self.modified_hooks | {self.current_hook_key})
+        else:
+            target_hooks = [self.current_hook_key]
+
+        # Filter to hooks that actually have rules (or the active hook)
+        hooks_to_compile = [hk for hk in target_hooks if self.rules_by_hook.get(hk)]
+        if not hooks_to_compile:
+            messagebox.showwarning("Warning", f"No rules to compile in '{self.current_hook_key}'.")
             return
-            
+
         try:
             m_id = self.current_monster["id"]
-            filepath = self.current_monster["path"]
-            bak_path = filepath + ".bak"
-            
-            clean_chunk0 = None
-            if os.path.exists(bak_path):
-                try:
-                    with open(bak_path, "rb") as f:
-                        bak_data = f.read()
-                    bak_chunks = packer.unpack_chunks(bak_data)
-                    clean_chunk0 = bak_chunks[0]
-                except Exception as e:
-                    self.log(f"Failed to read backup chunk 0: {e}", "warning")
-            
-            if clean_chunk0 is None:
-                clean_chunk0 = self.chunks[0]
-                
-            compiled_bytes = inject_rules(clean_chunk0, rules, worker_idx=1, func_idx=2)
-            
-            self.chunks[0] = compiled_bytes
-            self.monster_cache[m_id]["chunks"][0] = compiled_bytes
+            cur_chunk0 = bytes(self.chunks[0])
+            cur_chunk1 = bytes(self.chunks[1]) if len(self.chunks) > 1 else b""
+
+            compiled_summary = []
+            for hk in hooks_to_compile:
+                rules = self.rules_by_hook.get(hk, [])
+                if not rules:
+                    continue
+
+                ai_map = parse_chunk1_ai_map(cur_chunk1, cur_chunk0)
+                ai_w = ai_map["ai_worker_idx"]
+                hooks_map = self._get_hook_func_map(ai_map)
+                func_idx = hooks_map.get(hk, 0xFFFF)
+
+                # Auto-enable unmapped hook in Chunk 1 if needed
+                if func_idx == 0xFFFF:
+                    slot_idx = 0
+                    for s_idx, d_hk, _, _ in AI_EVENT_HOOK_DEFS:
+                        if d_hk == hk:
+                            slot_idx = s_idx
+                            break
+                    cur_chunk0, cur_chunk1, ai_w, func_idx = enable_chunk1_hook_slot(cur_chunk0, cur_chunk1, slot_idx)
+                    self.log(f"Auto-enabled Chunk 1 Hook '{hk}' (Slot {slot_idx}) -> w{ai_w}_f{func_idx}.", "info")
+
+                cur_chunk0 = inject_rules(
+                    cur_chunk0,
+                    rules,
+                    worker_idx=ai_w,
+                    func_idx=func_idx,
+                    chunk1_bytes=cur_chunk1,
+                    hook_key=hk
+                )
+                compiled_summary.append(f"{hk} (w{ai_w}_f{func_idx}: {len(rules)} rules)")
+                self.modified_hooks.discard(hk)
+
+            self.chunks[0] = cur_chunk0
+            self.chunks[1] = cur_chunk1
+            self.monster_cache[m_id]["chunks"][0] = cur_chunk0
+            self.monster_cache[m_id]["chunks"][1] = cur_chunk1
             self.monster_cache[m_id]["is_dirty"] = True
-            
+
+            self.ai_map_info = parse_chunk1_ai_map(self.chunks[1], self.chunks[0])
+            self.refresh_hook_selector_bar()
             self.update_monster_tree_name(m_id, self.current_monster["name"], True)
             self.disassemble_ai_script()
-            
-            self.log(f"Compiled and applied rule-based AI script for {self.current_monster['name']} successfully.", "success")
-            messagebox.showinfo("Success", f"AI script compiled successfully! Check the 'AI Atel Script' tab to view the generated code.")
+
+            summary_str = ", ".join(compiled_summary)
+            self.log(f"Compiled AI hooks for {self.current_monster['name']}: {summary_str}", "success")
+            messagebox.showinfo(
+                "Success",
+                f"Compiled and injected AI bytecode successfully!\n\nUpdated Hooks:\n• " + "\n• ".join(compiled_summary)
+            )
         except Exception as e:
             self.log(f"Failed to compile AI script: {e}", "error")
             messagebox.showerror("Error", f"Compilation failed:\n{str(e)}")
@@ -2640,7 +3311,7 @@ class FFXAIToolGUI:
         
         # 5. Rule Builder Tab
         self.tab_rule_builder = ttk.Frame(self.notebook, padding=10)
-        self.notebook.add(self.tab_rule_builder, text=" 🛠️ Rule-Based AI Builder ")
+        self.notebook.add(self.tab_rule_builder, text=" 🔧 Visual AI Rule Builder ")
         self.build_rule_builder_tab(self.tab_rule_builder)
         
         # 6. Player Stats Tab
@@ -3283,64 +3954,82 @@ class FFXAIToolGUI:
 
     def draw_flowchart(self):
         self.cvs_flowchart.delete("all")
-        
+
+        hook_title = getattr(self, "current_hook_key", "active_turn").upper()
         # Start node
-        self.cvs_flowchart.create_oval(175, 10, 225, 35, fill=self.accent_color, outline=self.border_color, width=2)
-        self.cvs_flowchart.create_text(200, 22, text="START", fill="#ffffff", font=("Segoe UI", 8, "bold"))
-        
-        current_y = 35
+        self.cvs_flowchart.create_oval(160, 10, 280, 38, fill=self.accent_color, outline=self.border_color, width=2)
+        self.cvs_flowchart.create_text(220, 24, text=f"START ({hook_title})", fill="#ffffff", font=("Segoe UI", 8, "bold"))
+
+        current_y = 38
         rules_ids = self.tree_rules.get_children()
-        
+
         if not rules_ids:
-            self.cvs_flowchart.create_line(200, current_y, 200, current_y + 40, arrow=tk.LAST, fill=self.text_dim, width=2)
+            self.cvs_flowchart.create_line(220, current_y, 220, current_y + 40, arrow=tk.LAST, fill=self.text_dim, width=2)
             current_y += 40
-            self.cvs_flowchart.create_oval(175, current_y, 225, current_y + 25, fill=self.btn_color_secondary, outline=self.border_color, width=2)
-            self.cvs_flowchart.create_text(200, current_y + 12, text="END", fill="#ffffff", font=("Segoe UI", 8, "bold"))
-            self.cvs_flowchart.configure(scrollregion=(0, 0, 500, current_y + 50))
+            self.cvs_flowchart.create_oval(185, current_y, 255, current_y + 26, fill=self.btn_color_secondary, outline=self.border_color, width=2)
+            self.cvs_flowchart.create_text(220, current_y + 13, text="RETURN", fill="#ffffff", font=("Segoe UI", 8, "bold"))
+            self.cvs_flowchart.configure(scrollregion=(0, 0, 620, current_y + 50))
             return
-            
+
         for rule_id in rules_ids:
             values = self.tree_rules.item(rule_id, "values")
-            cond, act_name, target, chance_str = values
-            
-            self.cvs_flowchart.create_line(200, current_y, 200, current_y + 30, arrow=tk.LAST, fill=self.text_dim, width=2)
-            current_y += 30
-            
+            if len(values) >= 6:
+                phase_str, cond, act_name, target, chance_str, state_flow = values[:6]
+            else:
+                phase_str = "Any"
+                cond, act_name, target, chance_str = values[:4]
+                state_flow = "Return"
+
+            self.cvs_flowchart.create_line(220, current_y, 220, current_y + 28, arrow=tk.LAST, fill=self.text_dim, width=2)
+            current_y += 28
+
+            has_phase = (phase_str != "Any")
             has_cond = (cond != "Always")
             has_chance = (chance_str != "100%")
-            
-            if has_cond or has_chance:
-                points = [200, current_y, 280, current_y + 30, 200, current_y + 60, 120, current_y + 30]
+
+            if has_phase or has_cond or has_chance:
+                points = [220, current_y, 330, current_y + 34, 220, current_y + 68, 110, current_y + 34]
                 self.cvs_flowchart.create_polygon(points, fill=self.card_color, outline=self.accent_color, width=2)
-                
-                cond_text = cond
+
+                cond_lines = []
+                if has_phase:
+                    cond_lines.append(f"[{phase_str}]")
+                if has_cond:
+                    cond_lines.append(cond)
                 if has_chance:
-                    cond_text += f"\n({chance_str} Chance)"
-                self.cvs_flowchart.create_text(200, current_y + 30, text=cond_text, fill=self.text_color, font=("Segoe UI", 8), justify="center")
-                
-                self.cvs_flowchart.create_line(280, current_y + 30, 350, current_y + 30, 350, current_y + 60, arrow=tk.LAST, fill=self.success_color, width=2)
-                self.cvs_flowchart.create_text(315, current_y + 18, text="Yes", fill=self.success_color, font=("Segoe UI", 8, "bold"))
-                
-                self.cvs_flowchart.create_rectangle(290, current_y + 60, 410, current_y + 110, fill=self.success_color, outline=self.border_color, width=1)
-                self.cvs_flowchart.create_text(350, current_y + 85, text=f"{act_name}\n({target})", fill="#ffffff", font=("Segoe UI", 9, "bold"), justify="center")
-                
-                self.cvs_flowchart.create_line(200, current_y + 60, 200, current_y + 130, fill=self.error_color, width=2)
-                self.cvs_flowchart.create_text(185, current_y + 90, text="No", fill=self.error_color, font=("Segoe UI", 8, "bold"))
-                
-                self.cvs_flowchart.create_line(350, current_y + 110, 350, current_y + 130, 200, current_y + 130, fill=self.success_color, width=2)
-                
-                current_y += 130
+                    cond_lines.append(f"({chance_str} Chance)")
+                cond_text = "\n".join(cond_lines)
+                self.cvs_flowchart.create_text(220, current_y + 34, text=cond_text, fill=self.text_color, font=("Segoe UI", 8), justify="center")
+
+                self.cvs_flowchart.create_line(330, current_y + 34, 410, current_y + 34, 410, current_y + 62, arrow=tk.LAST, fill=self.success_color, width=2)
+                self.cvs_flowchart.create_text(370, current_y + 22, text="True", fill=self.success_color, font=("Segoe UI", 8, "bold"))
+
+                self.cvs_flowchart.create_rectangle(335, current_y + 62, 505, current_y + 122, fill=self.success_color, outline=self.border_color, width=1)
+                act_box_txt = f"{act_name}\nTarget: {target}\n[{state_flow}]"
+                self.cvs_flowchart.create_text(420, current_y + 92, text=act_box_txt, fill="#ffffff", font=("Segoe UI", 8, "bold"), justify="center")
+
+                self.cvs_flowchart.create_line(220, current_y + 68, 220, current_y + 142, fill=self.error_color, width=2)
+                self.cvs_flowchart.create_text(200, current_y + 98, text="False", fill=self.error_color, font=("Segoe UI", 8, "bold"))
+
+                if "Continue" in state_flow:
+                    self.cvs_flowchart.create_line(420, current_y + 122, 420, current_y + 142, 220, current_y + 142, arrow=tk.LAST, fill=self.accent_color, width=2)
+                else:
+                    self.cvs_flowchart.create_line(505, current_y + 92, 555, current_y + 92, arrow=tk.LAST, fill=self.success_color, width=2)
+                    self.cvs_flowchart.create_text(578, current_y + 92, text="RET", fill=self.success_color, font=("Segoe UI", 8, "bold"))
+
+                current_y += 142
             else:
-                self.cvs_flowchart.create_rectangle(130, current_y, 270, current_y + 50, fill=self.card_color, outline=self.accent_color, width=2)
-                self.cvs_flowchart.create_text(200, current_y + 25, text=f"{act_name}\n({target})", fill=self.text_color, font=("Segoe UI", 9, "bold"), justify="center")
-                current_y += 50
-                
-        self.cvs_flowchart.create_line(200, current_y, 200, current_y + 35, arrow=tk.LAST, fill=self.text_dim, width=2)
+                self.cvs_flowchart.create_rectangle(125, current_y, 315, current_y + 58, fill=self.card_color, outline=self.accent_color, width=2)
+                act_box_txt = f"{act_name}\nTarget: {target}\n[{state_flow}]"
+                self.cvs_flowchart.create_text(220, current_y + 29, text=act_box_txt, fill=self.text_color, font=("Segoe UI", 8, "bold"), justify="center")
+                current_y += 58
+
+        self.cvs_flowchart.create_line(220, current_y, 220, current_y + 35, arrow=tk.LAST, fill=self.text_dim, width=2)
         current_y += 35
-        self.cvs_flowchart.create_oval(175, current_y, 225, current_y + 25, fill=self.accent_color, outline=self.border_color, width=2)
-        self.cvs_flowchart.create_text(200, current_y + 12, text="END", fill="#ffffff", font=("Segoe UI", 8, "bold"))
-        
-        self.cvs_flowchart.configure(scrollregion=(0, 0, 500, current_y + 50))
+        self.cvs_flowchart.create_oval(185, current_y, 255, current_y + 26, fill=self.accent_color, outline=self.border_color, width=2)
+        self.cvs_flowchart.create_text(220, current_y + 13, text="RETURN", fill="#ffffff", font=("Segoe UI", 8, "bold"))
+
+        self.cvs_flowchart.configure(scrollregion=(0, 0, 620, current_y + 50))
 
     def setup_shortcuts(self):
         self.root.bind("<Control-s>", lambda e: self.apply_save())
@@ -3372,7 +4061,7 @@ class FFXAIToolGUI:
             ("comment", r"(//.*$|#.*$)"),
             ("lbl", r"\b(w\d+_Label_\d+|w\d+_f\d+|label_\d+|Label_\d+)\b:?"),
             ("kw", r"\b(if|goto|return|halt|pass|def|case|switch|and|or|not)\b"),
-            ("func", r"\b(BuildAction|ExecuteAction|GetProperty|GetRandomValue|checkTargetStatus|checkTargetElement|targetDistToParty|wait|halt|loadModel|setPosition|setMovementSpeed|call_[0-9A-Fa-f]+)\b"),
+            ("func", r"\b(BuildAction|ExecuteAction|ExecuteCounterAction|GetProperty|SetProperty|GetRandomValue|GetTargetMask|GetEntityStatus|SetTargetFilter|GetLastAttacker|GetLastActionId|GetPartyWithStatusMask|GetAbilityProperty|CountSetBits|RandomTargetFromMask|GetHighestStatTarget|GetLowestStatTarget|GetFirstSetBitTarget|ShowBattleDialog|PlayEffect|checkTargetStatus|checkTargetElement|targetDistToParty|wait|halt|loadModel|setPosition|setMovementSpeed|call_[0-9A-Fa-f]+)\b"),
             ("reg", r"\b(rA|rX|rY|var_[0-9A-Fa-f]+|refInts|refFloats|I\d+|F\d+)\b"),
             ("num", r"\b(0x[0-9A-Fa-f]+|-?\d+)\b"),
             ("str", r'"[^"\n]*"'),
@@ -3457,26 +4146,26 @@ class FFXAIToolGUI:
             return block[offset] if block and len(block) > offset else 0
 
         stats_list = [
-            ("Core", "HP", get_stat_u32(orig_bytes_us, 0x00) if orig_bytes_us else int(self.var_hp.get()), int(self.var_hp.get())),
-            ("Core", "MP", get_stat_u32(orig_bytes_us, 0x04) if orig_bytes_us else int(self.var_mp.get()), int(self.var_mp.get())),
-            ("Core", "Overkill HP", get_stat_u32(orig_bytes_us, 0x08) if orig_bytes_us else int(self.var_overkill.get()), int(self.var_overkill.get())),
-            ("Core", "Strength", get_stat_u8(orig_bytes_us, 0x0C) if orig_bytes_us else int(self.var_str.get()), int(self.var_str.get())),
-            ("Core", "Defense", get_stat_u8(orig_bytes_us, 0x0D) if orig_bytes_us else int(self.var_def.get()), int(self.var_def.get())),
-            ("Core", "Magic", get_stat_u8(orig_bytes_us, 0x0E) if orig_bytes_us else int(self.var_mag.get()), int(self.var_mag.get())),
-            ("Core", "Magic Defense", get_stat_u8(orig_bytes_us, 0x0F) if orig_bytes_us else int(self.var_mdf.get()), int(self.var_mdf.get())),
-            ("Core", "Agility", get_stat_u8(orig_bytes_us, 0x10) if orig_bytes_us else int(self.var_agi.get()), int(self.var_agi.get())),
-            ("Core", "Luck", get_stat_u8(orig_bytes_us, 0x11) if orig_bytes_us else int(self.var_lck.get()), int(self.var_lck.get())),
-            ("Core", "Evasion", get_stat_u8(orig_bytes_us, 0x12) if orig_bytes_us else int(self.var_eva.get()), int(self.var_eva.get())),
-            ("Core", "Accuracy", get_stat_u8(orig_bytes_us, 0x13) if orig_bytes_us else int(self.var_acc.get()), int(self.var_acc.get())),
+            ("Core", "HP", get_stat_u32(orig_bytes_us, 0x14) if orig_bytes_us else int(self.var_hp.get()), int(self.var_hp.get())),
+            ("Core", "MP", get_stat_u32(orig_bytes_us, 0x18) if orig_bytes_us else int(self.var_mp.get()), int(self.var_mp.get())),
+            ("Core", "Overkill HP", get_stat_u32(orig_bytes_us, 0x1C) if orig_bytes_us else int(self.var_overkill.get()), int(self.var_overkill.get())),
+            ("Core", "Strength", get_stat_u8(orig_bytes_us, 0x20) if orig_bytes_us else int(self.var_str.get()), int(self.var_str.get())),
+            ("Core", "Defense", get_stat_u8(orig_bytes_us, 0x21) if orig_bytes_us else int(self.var_def.get()), int(self.var_def.get())),
+            ("Core", "Magic", get_stat_u8(orig_bytes_us, 0x22) if orig_bytes_us else int(self.var_mag.get()), int(self.var_mag.get())),
+            ("Core", "Magic Defense", get_stat_u8(orig_bytes_us, 0x23) if orig_bytes_us else int(self.var_mdf.get()), int(self.var_mdf.get())),
+            ("Core", "Agility", get_stat_u8(orig_bytes_us, 0x24) if orig_bytes_us else int(self.var_agi.get()), int(self.var_agi.get())),
+            ("Core", "Luck", get_stat_u8(orig_bytes_us, 0x25) if orig_bytes_us else int(self.var_lck.get()), int(self.var_lck.get())),
+            ("Core", "Evasion", get_stat_u8(orig_bytes_us, 0x26) if orig_bytes_us else int(self.var_eva.get()), int(self.var_eva.get())),
+            ("Core", "Accuracy", get_stat_u8(orig_bytes_us, 0x27) if orig_bytes_us else int(self.var_acc.get()), int(self.var_acc.get())),
             ("Loot", "Gil", get_stat_u16(orig_loot, 0x00) if orig_loot else int(self.var_gil.get()), int(self.var_gil.get())),
             ("Loot", "AP (Normal)", get_stat_u16(orig_loot, 0x02) if orig_loot else int(self.var_ap_n.get()), int(self.var_ap_n.get())),
             ("Loot", "AP (Overkill)", get_stat_u16(orig_loot, 0x04) if orig_loot else int(self.var_ap_o.get()), int(self.var_ap_o.get())),
-            ("Resistances", "Death Res", get_stat_u8(orig_bytes_us, 0x20) if orig_bytes_us else int(self.var_res_death.get()), int(self.var_res_death.get())),
-            ("Resistances", "Petrify Res", get_stat_u8(orig_bytes_us, 0x22) if orig_bytes_us else int(self.var_res_petrify.get()), int(self.var_res_petrify.get())),
-            ("Resistances", "Poison Res", get_stat_u8(orig_bytes_us, 0x23) if orig_bytes_us else int(self.var_res_poison.get()), int(self.var_res_poison.get())),
-            ("Resistances", "Silence Res", get_stat_u8(orig_bytes_us, 0x29) if orig_bytes_us else int(self.var_res_silence.get()), int(self.var_res_silence.get())),
-            ("Resistances", "Darkness Res", get_stat_u8(orig_bytes_us, 0x2A) if orig_bytes_us else int(self.var_res_darkness.get()), int(self.var_res_darkness.get())),
-            ("Resistances", "Slow Res", get_stat_u8(orig_bytes_us, 0x2C) if orig_bytes_us else int(self.var_res_slow.get()), int(self.var_res_slow.get())),
+            ("Resistances", "Death Res", get_stat_u8(orig_bytes_us, 0x2F) if orig_bytes_us else int(self.var_res_death.get()), int(self.var_res_death.get())),
+            ("Resistances", "Petrify Res", get_stat_u8(orig_bytes_us, 0x31) if orig_bytes_us else int(self.var_res_petrify.get()), int(self.var_res_petrify.get())),
+            ("Resistances", "Poison Res", get_stat_u8(orig_bytes_us, 0x32) if orig_bytes_us else int(self.var_res_poison.get()), int(self.var_res_poison.get())),
+            ("Resistances", "Silence Res", get_stat_u8(orig_bytes_us, 0x3C) if orig_bytes_us else int(self.var_res_silence.get()), int(self.var_res_silence.get())),
+            ("Resistances", "Darkness Res", get_stat_u8(orig_bytes_us, 0x3D) if orig_bytes_us else int(self.var_res_darkness.get()), int(self.var_res_darkness.get())),
+            ("Resistances", "Slow Res", get_stat_u8(orig_bytes_us, 0x47) if orig_bytes_us else int(self.var_res_slow.get()), int(self.var_res_slow.get())),
         ]
         
         for cat, name, orig, curr in stats_list:
@@ -3575,10 +4264,17 @@ class FFXAIToolGUI:
                     return
                     
             count = 0
-            for fname in os.listdir(mon_dir):
-                if not (fname.startswith("m") and fname.endswith(".bin")):
+            for entry_name in sorted(os.listdir(mon_dir)):
+                folder_p = os.path.join(mon_dir, entry_name)
+                if entry_name.startswith("_m") and os.path.isdir(folder_p):
+                    m_id = entry_name[1:]
+                    fpath = os.path.join(folder_p, f"{m_id}.bin")
+                elif entry_name.startswith("m") and entry_name.endswith(".bin"):
+                    fpath = folder_p
+                else:
                     continue
-                fpath = os.path.join(mon_dir, fname)
+                if not os.path.exists(fpath):
+                    continue
                 bak_path = fpath + ".bak"
                 if not os.path.exists(bak_path):
                     shutil.copy2(fpath, bak_path)
@@ -3589,34 +4285,43 @@ class FFXAIToolGUI:
                 if len(chunks) < 7:
                     continue
                     
-                # 1. Randomize stats (chunks 2 and 6)
+                # 1. Randomize stats (chunks 2 and 6) using authentic FFX stat offsets
                 for chunk_idx in [2, 6]:
                     c = bytearray(chunks[chunk_idx])
                     if len(c) < 128:
                         continue
                     if var_rnd_stats.get():
-                        hp = struct.unpack("<I", c[0x00:0x04])[0]
-                        mp = struct.unpack("<I", c[0x04:0x08])[0]
-                        ok = struct.unpack("<I", c[0x08:0x0C])[0]
+                        hp = struct.unpack("<I", c[0x14:0x18])[0]
+                        mp = struct.unpack("<I", c[0x18:0x1C])[0]
+                        ok = struct.unpack("<I", c[0x1C:0x20])[0]
                         hp_m = random.uniform(min_m, max_m)
-                        struct.pack_into("<I", c, 0x00, min(99999999, max(1, int(hp * hp_m))))
-                        struct.pack_into("<I", c, 0x04, min(9999, max(0, int(mp * random.uniform(min_m, max_m)))))
-                        struct.pack_into("<I", c, 0x08, min(99999999, max(1, int(ok * hp_m))))
+                        struct.pack_into("<I", c, 0x14, min(99999999, max(1, int(hp * hp_m))))
+                        struct.pack_into("<I", c, 0x18, min(9999, max(0, int(mp * random.uniform(min_m, max_m)))))
+                        struct.pack_into("<I", c, 0x1C, min(99999999, max(1, int(ok * hp_m))))
                         
-                        for off in [0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13]:
+                        for off in [0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27]:
                             val = c[off]
                             new_val = min(255, max(1, int(val * random.uniform(min_m, max_m))))
                             c[off] = new_val
                             
                     if var_rnd_elems.get():
-                        c[0x18] = random.randint(0, 31)
-                        c[0x19] = random.randint(0, 31)
-                        c[0x1A] = random.randint(0, 31)
-                        c[0x1B] = random.randint(0, 31)
+                        # Ensure mutually exclusive elemental states across 0x2B..0x2E
+                        absorb, immune, resist, weak = 0, 0, 0, 0
+                        for bit in [1, 2, 4, 8, 16]:
+                            st = random.choice(["Normal", "Normal", "Weak", "Resist", "Immune", "Absorb"])
+                            if st == "Absorb": absorb |= bit
+                            elif st == "Immune": immune |= bit
+                            elif st == "Resist": resist |= bit
+                            elif st == "Weak": weak |= bit
+                        c[0x2B] = absorb
+                        c[0x2C] = immune
+                        c[0x2D] = resist
+                        c[0x2E] = weak
                         
                     if var_rnd_res.get():
-                        for off in range(0x20, 0x30):
-                            c[off] = random.choice([0, 50, 100, 255])
+                        for off in [0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x46, 0x47]:
+                            if off < len(c) and c[off] != 255:
+                                c[off] = random.choice([0, 25, 50, 100, 254])
                             
                     chunks[chunk_idx] = bytes(c)
                     
@@ -3718,7 +4423,9 @@ class FFXAIToolGUI:
                 
         applied = 0
         for m_id, m_info in monsters.items():
-            fpath = os.path.join(mon_dir, f"{m_id}.bin")
+            fpath = os.path.join(mon_dir, f"_{m_id}", f"{m_id}.bin")
+            if not os.path.exists(fpath):
+                fpath = os.path.join(mon_dir, f"{m_id}.bin")
             if not os.path.exists(fpath):
                 continue
             bak_path = fpath + ".bak"

@@ -187,6 +187,18 @@ SPIRA_ENCOUNTERS = [
             {"monsters": [("m077", "Tonberry"), ("m069", "Yowie")], "rate": "10%", "ambush": "15%"}
         ]
     },
+    {
+        "zone": "Calm Lands & Sunken Cave",
+        "sub_area": "Remiem Temple (Belgemine Aeon Duels & Magus Sisters)",
+        "formations": [
+            {"monsters": [("m284", "Ifrit")], "rate": "Aeon Duel", "ambush": "0%"},
+            {"monsters": [("m285", "Ixion")], "rate": "Aeon Duel", "ambush": "0%"},
+            {"monsters": [("m286", "Shiva")], "rate": "Aeon Duel", "ambush": "0%"},
+            {"monsters": [("m287", "Bahamut")], "rate": "Aeon Duel", "ambush": "0%"},
+            {"monsters": [("m288", "Yojimbo")], "rate": "Aeon Duel", "ambush": "0%"},
+            {"monsters": [("m289", "Sandy"), ("m290", "Cindy"), ("m291", "Mindy")], "rate": "Magus Trio Duel", "ambush": "0%"}
+        ]
+    },
     # 11. Mt. Gagazet & Zanarkand
     {
         "zone": "Mt. Gagazet & Zanarkand",
@@ -239,19 +251,21 @@ SPIRA_ENCOUNTERS = [
         "zone": "Monster Arena",
         "sub_area": "Arena Creations (Area, Species, Original)",
         "formations": [
-            {"monsters": [("m334", "Stratoavis")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m335", "Malboro Menace")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m336", "Kottos")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m337", "Coeurlregina")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m338", "Juggernaut")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m339", "Ironclad")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m340", "Earth Eater")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m341", "Greater Sphere")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m342", "Catastrophe")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m343", "Th'uban")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m344", "Neslug")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m345", "Ultima Buster")], "rate": "Arena", "ambush": "0%"},
-            {"monsters": [("m346", "Shinryu")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m300", "Stratoavis")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m304", "Malboro Menace")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m305", "Kottos")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m309", "Coeurlregina")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m302", "Juggernaut")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m310", "Ironclad")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m279", "Earth Eater")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m281", "Greater Sphere")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m277", "Catastrophe")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m282", "Th'uban")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m280", "Ultima Buster")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m283", "Shinryu")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m295", "Jumbo Flan")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m314", "Cactuar King")], "rate": "Arena", "ambush": "0%"},
+            {"monsters": [("m317", "Don Tonberry")], "rate": "Arena", "ambush": "0%"},
             {"monsters": [("m276", "Nemesis")], "rate": "Arena Final", "ambush": "0%"}
         ]
     },
@@ -260,67 +274,66 @@ SPIRA_ENCOUNTERS = [
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Besaid Island (Village Entrance)",
         "formations": [
-            {"monsters": [("m280", "Dark Valefor")], "rate": "Superboss", "ambush": "0%"},
-            {"monsters": [("m109", "Dark Valefor (Alt)")], "rate": "Superboss", "ambush": "0%"}
+            {"monsters": [("m334", "Dark Valefor")], "rate": "Superboss", "ambush": "0%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Sanubia Desert (Home Oasis)",
         "formations": [
-            {"monsters": [("m281", "Dark Ifrit")], "rate": "Superboss", "ambush": "0%"}
+            {"monsters": [("m335", "Dark Ifrit")], "rate": "Superboss", "ambush": "0%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Thunder Plains (North Section)",
         "formations": [
-            {"monsters": [("m282", "Dark Ixion")], "rate": "Superboss", "ambush": "0%"}
+            {"monsters": [("m336", "Dark Ixion")], "rate": "Superboss", "ambush": "0%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Macalania (Temple Approach)",
         "formations": [
-            {"monsters": [("m283", "Dark Shiva")], "rate": "Superboss", "ambush": "0%"}
+            {"monsters": [("m337", "Dark Shiva")], "rate": "Superboss", "ambush": "0%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Zanarkand Dome (Yunalesca Sanctum)",
         "formations": [
-            {"monsters": [("m284", "Dark Bahamut")], "rate": "Superboss", "ambush": "0%"}
+            {"monsters": [("m338", "Dark Bahamut")], "rate": "Superboss", "ambush": "0%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Cavern of the Stolen Fayth (Deep Chamber)",
         "formations": [
-            {"monsters": [("m285", "Dark Yojimbo")], "rate": "5-Fight Superboss", "ambush": "25%"}
+            {"monsters": [("m340", "Dark Yojimbo")], "rate": "5-Fight Superboss", "ambush": "25%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Mt. Gagazet (Cave Trail Entrance)",
         "formations": [
-            {"monsters": [("m286", "Dark Anima")], "rate": "Superboss", "ambush": "0%"}
+            {"monsters": [("m339", "Dark Anima")], "rate": "Superboss", "ambush": "0%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Mushroom Rock Road (Valley Ravine)",
         "formations": [
-            {"monsters": [("m287", "Dark Cindy"), ("m288", "Dark Sandy"), ("m289", "Dark Mindy")], "rate": "Trio Superboss", "ambush": "0%"},
-            {"monsters": [("m287", "Dark Cindy")], "rate": "Solo Chase", "ambush": "0%"},
-            {"monsters": [("m288", "Dark Sandy")], "rate": "Solo Chase", "ambush": "0%"},
-            {"monsters": [("m289", "Dark Mindy")], "rate": "Solo Chase", "ambush": "0%"}
+            {"monsters": [("m341", "Dark Cindy"), ("m342", "Dark Sandy"), ("m343", "Dark Mindy")], "rate": "Trio Superboss", "ambush": "0%"},
+            {"monsters": [("m341", "Dark Cindy")], "rate": "Solo Chase", "ambush": "0%"},
+            {"monsters": [("m342", "Dark Sandy")], "rate": "Solo Chase", "ambush": "0%"},
+            {"monsters": [("m343", "Dark Mindy")], "rate": "Solo Chase", "ambush": "0%"}
         ]
     },
     {
         "zone": "Dark Aeons & Superbosses",
         "sub_area": "Airship Sky Deck (Spira Skies)",
         "formations": [
-            {"monsters": [("m290", "Penance"), ("m291", "Left Arm"), ("m292", "Right Arm")], "rate": "Ultimate Superboss", "ambush": "0%"}
+            {"monsters": [("m344", "Penance (Main Body)"), ("m346", "Left Arm"), ("m345", "Right Arm")], "rate": "Ultimate Superboss", "ambush": "0%"}
         ]
     },
     {
